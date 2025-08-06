@@ -1,5 +1,5 @@
 import User from "../models/user.model.js";
-import { redis } from "../lib/redis.js";
+//import { redis } from "../lib/redis.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import {
@@ -9,33 +9,46 @@ import {
   sendResetSuccessEmail,
 } from "../mailtrap/emails.js";
 
-const generateTokens = (userId) => {
-  const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: "15m",
-  });
-  const refreshToken = jwt.sign({ userId }, process.env.REFRESH_TOKEN_SECRET, {
+// const generateTokens = (userId) => {
+//   const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
+//     expiresIn: "15m",
+//   });
+//   const refreshToken = jwt.sign({ userId }, process.env.REFRESH_TOKEN_SECRET, {
+//     expiresIn: "7d",
+//   });
+//   return { accessToken, refreshToken };
+// };
+
+// const storeRefreshToken = async (userId, refreshToken) => {
+//   await redis.set(
+//     `refresh_token:${userId}`,
+//     refreshToken,
+//     "EX",
+//     60 * 60 * 24 * 7
+//   ); // Store for 7 days
+// };
+
+// const setCookies = (res, accessToken, refreshToken) => {
+//   res.cookie("accessToken", accessToken, {
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === "production",
+//     sameSite: "strict",
+//     maxAge: 15 * 60 * 1000, // 15 minutes
+//   });
+//   res.cookie("refreshToken", refreshToken, {
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === "production",
+//     sameSite: "strict",
+//     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+//   });
+// };
+
+const generateTokenAndSetCookie = (res, userId) => {
+  const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
-  return { accessToken, refreshToken };
-};
 
-const storeRefreshToken = async (userId, refreshToken) => {
-  await redis.set(
-    `refresh_token:${userId}`,
-    refreshToken,
-    "EX",
-    60 * 60 * 24 * 7
-  ); // Store for 7 days
-};
-
-const setCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 15 * 60 * 1000, // 15 minutes
-  });
-  res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
@@ -67,10 +80,11 @@ export const Signup = async (req, res) => {
 
     await newUser.save();
 
-    const { accessToken, refreshToken } = generateTokens(newUser._id);
-    await storeRefreshToken(newUser._id, refreshToken);
+    // const { accessToken, refreshToken } = generateTokens(newUser._id);
+    // await storeRefreshToken(newUser._id, refreshToken);
+    // setCookies(res, accessToken, refreshToken);
 
-    setCookies(res, accessToken, refreshToken);
+    generateTokenAndSetCookie(res, newUser._id);
 
     await sendVerificationEmail(newUser.email, verificationToken);
 
@@ -131,10 +145,13 @@ export const Login = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
     if (user && (await user.comparePassword(password))) {
-      const { accessToken, refreshToken } = generateTokens(user._id);
-      await storeRefreshToken(user._id, refreshToken);
 
-      setCookies(res, accessToken, refreshToken);
+
+      // const { accessToken, refreshToken } = generateTokens(user._id);
+      // await storeRefreshToken(user._id, refreshToken);
+      // setCookies(res, accessToken, refreshToken);
+
+      generateTokenAndSetCookie(res, user._id);
 
       res.status(200).json({
         user: {
@@ -156,17 +173,18 @@ export const Login = async (req, res) => {
 
 export const Logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
-    if (refreshToken) {
-      const decoded = jwt.verify(
-        refreshToken,
-        process.env.REFRESH_TOKEN_SECRET
-      );
-      await redis.del(`refresh_token:${decoded.userId}`);
-    }
+
+    // const refreshToken = req.cookies.refreshToken;
+    // if (refreshToken) {
+    //   const decoded = jwt.verify(
+    //     refreshToken,
+    //     process.env.REFRESH_TOKEN_SECRET
+    //   );
+    //   await redis.del(`refresh_token:${decoded.userId}`);
+    // }
 
     res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
+    //res.clearCookie("refreshToken");
     return res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     return res
@@ -175,44 +193,44 @@ export const Logout = async (req, res) => {
   }
 };
 
-export const RefreshToken = async (req, res) => {
-  try {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-      return res.status(401).json({ message: "No refresh token provided" });
-    }
+// export const RefreshToken = async (req, res) => {
+//   try {
+//     const refreshToken = req.cookies.refreshToken;
+//     if (!refreshToken) {
+//       return res.status(401).json({ message: "No refresh token provided" });
+//     }
 
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+//     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
-    const storedRefreshToken = await redis.get(
-      `refresh_token:${decoded.userId}`
-    );
+//     const storedRefreshToken = await redis.get(
+//       `refresh_token:${decoded.userId}`
+//     );
 
-    if (!storedRefreshToken) {
-      return res.status(403).json({ message: "Invalid refresh token" });
-    }
+//     if (!storedRefreshToken) {
+//       return res.status(403).json({ message: "Invalid refresh token" });
+//     }
 
-    const accessToken = jwt.sign(
-      { userId: decoded.userId },
-      process.env.ACCESS_TOKEN_SECRET,
-      {
-        expiresIn: "15m",
-      }
-    );
+//     const accessToken = jwt.sign(
+//       { userId: decoded.userId },
+//       process.env.ACCESS_TOKEN_SECRET,
+//       {
+//         expiresIn: "15m",
+//       }
+//     );
 
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 15 * 60 * 1000, // 15 minutes
-    });
+//     res.cookie("accessToken", accessToken, {
+//       httpOnly: true,
+//       secure: process.env.NODE_ENV === "production",
+//       sameSite: "strict",
+//       maxAge: 15 * 60 * 1000, // 15 minutes
+//     });
 
-    res.status(200).json({ message: "Token refreshed successfully" });
-  } catch (error) {
-    console.error("Error refreshing token:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
+//     res.status(200).json({ message: "Token refreshed successfully" });
+//   } catch (error) {
+//     console.error("Error refreshing token:", error);
+//     return res.status(500).json({ message: "Internal server error" });
+//   }
+// };
 
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -270,5 +288,28 @@ export const resetPassword = async (req, res) => {
   } catch (error) {
     console.error("Error resetting password:", error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const checkAuth = async (req, res) => {
+  try {
+    const user = await User.findById(req.user).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      message: "User authenticated successfully",
+    });
+  } catch (error) {
+    console.error("Error checking authentication:", error);
+    return res.status(500).json({ message: "Internal server error" });
+    
   }
 };
