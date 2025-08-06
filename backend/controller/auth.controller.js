@@ -1,7 +1,12 @@
 import User from "../models/user.model.js";
 import { redis } from "../lib/redis.js";
 import jwt from "jsonwebtoken";
-import { sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/emails.js";
+import crypto from "crypto";
+import {
+  sendVerificationEmail,
+  sendWelcomeEmail,
+  sendPasswordResetEmail,
+} from "../mailtrap/emails.js";
 
 const generateTokens = (userId) => {
   const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
@@ -205,5 +210,36 @@ export const RefreshToken = async (req, res) => {
   } catch (error) {
     console.error("Error refreshing token:", error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate a password reset token
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    const resetTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpiresAt = resetTokenExpiresAt;
+    await user.save();
+
+    const resetURL = `${process.env.CLIENT_URL}/api/auth/forgot-password/${resetToken}`;
+    console.log("Generated reset URL:", resetURL);
+
+    await sendPasswordResetEmail(user.email, resetURL);
+
+    return res.status(200).json({ message: "Password reset email sent" });
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    return res
+      .status(500)
+      .json({ message: "Internal server error: " + error.message });
   }
 };
