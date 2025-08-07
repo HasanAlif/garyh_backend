@@ -7,12 +7,14 @@ import {
   forgotPassword,
   resetPassword,
   checkAuth,
+  getProfile,
 } from "../controller/auth.controller.js";
-import { verifyToken } from "../middleware/verifyToken.js";
+import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/check-auth", verifyToken, checkAuth);
+router.get("/check-auth", protectRoute, checkAuth);
+router.get("/profile", protectRoute, getProfile);
 
 router.post("/signup", Signup);
 router.post("/login", Login);

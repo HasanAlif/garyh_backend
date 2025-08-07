@@ -313,3 +313,13 @@ export const checkAuth = async (req, res) => {
     
   }
 };
+
+export const getProfile = async (req, res) => {
+  try {
+    res.json(req.user);
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    return res.status(500).json({ message: "Internal server error" , error: error.message });
+    
+  }
+}
