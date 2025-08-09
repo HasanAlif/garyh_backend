@@ -8,7 +8,7 @@ const landSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-    //   required: [true, "Please provide an image of your spot"],
+      //   required: [true, "Please provide an image of your spot"],
     },
     spot: {
       type: String,
@@ -16,13 +16,13 @@ const landSchema = new mongoose.Schema(
     },
     amenities: {
       type: [String],
-        required: [true, "Amenities are required"],
+      required: [true, "Amenities are required"],
     },
     rv_type: {
       type: [String],
     },
     max_slide: {
-      type: [String, Number],
+      type: [Number],
     },
     site_types: {
       type: [String],
@@ -34,13 +34,9 @@ const landSchema = new mongoose.Schema(
       type: String,
       required: [true, "Description is required"],
     },
-    start_date: {
-      type: Date,
-      required: [true, "Start date is required"],
-    },
-    end_date: {
-      type: Date,
-      required: [true, "End date is required"],
+    isAvailable: {
+      type: Boolean,
+      required: true,
     },
     price: {
       type: Number,

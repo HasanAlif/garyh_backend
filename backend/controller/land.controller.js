@@ -13,8 +13,7 @@ export const createLand = async (req, res) => {
       site_types,
       site_length,
       description,
-      start_date,
-      end_date,
+      isAvailable,
       price,
     } = req.body;
 
@@ -37,8 +36,7 @@ export const createLand = async (req, res) => {
       site_types,
       site_length,
       description,
-      start_date,
-      end_date,
+      isAvailable,
       price,
       owner: req.user._id,
     });
@@ -65,11 +63,7 @@ export const getAllLand = async (req, res) => {
   }
 };
 
-
-
 // {This will use after Merge with frontend and can upload images to Cloudinary}
-
-
 
 // export const deleteLand = async (req, res) => {
 //   try {
@@ -103,16 +97,60 @@ export const getAllLand = async (req, res) => {
 //   }
 // };
 
-
 export const deleteLand = async (req, res) => {
-    try {
-        const {id} =req.params;
-        const land = await Land.findByIdAndDelete(id);
-        if (!land) {
-            return res.status(404).json({ message: "Land not found" });
-        }
-        res.status(200).json({ message: "Land deleted successfully" });
-    } catch (error) {
-        res.status(500).json({ message: "Server Error", error: error.message });
+  try {
+    const { id } = req.params;
+    const land = await Land.findByIdAndDelete(id);
+    if (!land) {
+      return res.status(404).json({ message: "Land not found" });
     }
-}
+    res.status(200).json({ message: "Land deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+export const updateLand = async (req, res) => {
+  const { id } = req.params;
+  const {
+    location,
+    image,
+    spot,
+    amenities,
+    rv_type,
+    max_slide,
+    site_types,
+    site_length,
+    description,
+    isAvailable,
+    price,
+  } = req.body;
+
+  try {
+    const land = await Land.findByIdAndUpdate(
+      id,
+      {
+        location,
+        image,
+        spot,
+        amenities,
+        rv_type,
+        max_slide,
+        site_types,
+        site_length,
+        description,
+        isAvailable,
+        price,
+      },
+      { new: true }
+    );
+
+    if (!land) {
+      return res.status(404).json({ message: "Land not found" });
+    }
+
+    res.status(200).json({ message: "Land updated successfully", land });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
