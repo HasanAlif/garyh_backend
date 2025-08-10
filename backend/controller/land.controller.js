@@ -474,3 +474,31 @@ export const filterLands = async (req, res) => {
     });
   }
 };
+
+
+export const searchByLocation = async (req, res) => {
+  try {
+    const { location } = req.query;
+
+    if (!location) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a location to search."
+      });
+    }
+
+    const lands = await Land.find({
+      location: { $regex: location, $options: "i" }
+    });
+
+    res.status(200).json({
+      success: true,
+      count: lands.length,
+      data: lands
+    });
+
+  } catch (error) {
+    console.error("Error searching by location:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
