@@ -113,11 +113,32 @@ export const getAllLand = async (req, res) => {
 export const deleteLand = async (req, res) => {
   try {
     const { id } = req.params;
-    const land = await Land.findByIdAndDelete(id);
+    const userId = req.user._id;
+
+    // First find the land to check ownership
+    const land = await Land.findById(id);
     if (!land) {
       return res.status(404).json({ message: "Land not found" });
     }
-    res.status(200).json({ message: "Land deleted successfully" });
+
+    // Check if the current user is the owner of this land
+    if (land.owner.toString() !== userId.toString()) {
+      return res.status(403).json({ 
+        message: "Access denied. You can only delete your own land listings." 
+      });
+    }
+
+    // If ownership is verified, proceed with deletion
+    await Land.findByIdAndDelete(id);
+    
+    res.status(200).json({ 
+      message: "Land deleted successfully",
+      deletedLand: {
+        id: land._id,
+        location: land.location,
+        spot: land.spot
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -140,6 +161,19 @@ export const updateLand = async (req, res) => {
   } = req.body;
 
   try {
+    const userId = req.user._id;
+
+    const existingLand = await Land.findById(id);
+    if (!existingLand) {
+      return res.status(404).json({ message: "Land not found" });
+    }
+
+    if (existingLand.owner.toString() !== userId.toString()) {
+      return res.status(403).json({ 
+        message: "Access denied. You can only update your own land listings." 
+      });
+    }
+
     const parseArrayField = (field) => {
       if (typeof field === "string") {
         try {
@@ -170,11 +204,10 @@ export const updateLand = async (req, res) => {
       { new: true }
     );
 
-    if (!land) {
-      return res.status(404).json({ message: "Land not found" });
-    }
-
-    res.status(200).json({ message: "Land updated successfully", land });
+    res.status(200).json({ 
+      message: "Land updated successfully", 
+      land 
+    });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
