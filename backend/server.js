@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use("/api/auth", authRoutes);
 app.use("/api/landowner", landRoutes);
+app.use("/api/lands", landRoutes);
 app.use("/api/traveler", travelerRoutes);
 
 app.listen(PORT, () => {
