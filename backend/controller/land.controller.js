@@ -17,6 +17,18 @@ export const createLand = async (req, res) => {
       price,
     } = req.body;
 
+    const parseArrayField = (field) => {
+      if (typeof field === "string") {
+        try {
+          const parsed = JSON.parse(field);
+          return Array.isArray(parsed) ? parsed : [field];
+        } catch {
+          return [field];
+        }
+      }
+      return Array.isArray(field) ? field : [field];
+    };
+
     let cloudinaryResponse = null;
 
     if (image) {
@@ -24,17 +36,18 @@ export const createLand = async (req, res) => {
         folder: "land_images",
       });
     }
+
     const land = await Land.create({
       location,
       image: cloudinaryResponse?.secure_url
         ? cloudinaryResponse.secure_url
         : "",
       spot,
-      amenities,
-      rv_type,
-      max_slide,
-      site_types,
-      site_length,
+      amenities: parseArrayField(amenities),
+      rv_type: parseArrayField(rv_type),
+      max_slide: parseArrayField(max_slide),
+      site_types: parseArrayField(site_types),
+      site_length: parseArrayField(site_length),
       description,
       isAvailable,
       price,
@@ -127,17 +140,29 @@ export const updateLand = async (req, res) => {
   } = req.body;
 
   try {
+    const parseArrayField = (field) => {
+      if (typeof field === "string") {
+        try {
+          const parsed = JSON.parse(field);
+          return Array.isArray(parsed) ? parsed : [field];
+        } catch {
+          return [field];
+        }
+      }
+      return Array.isArray(field) ? field : [field];
+    };
+
     const land = await Land.findByIdAndUpdate(
       id,
       {
         location,
         image,
         spot,
-        amenities,
-        rv_type,
-        max_slide,
-        site_types,
-        site_length,
+        amenities: parseArrayField(amenities),
+        rv_type: parseArrayField(rv_type),
+        max_slide: parseArrayField(max_slide),
+        site_types: parseArrayField(site_types),
+        site_length: parseArrayField(site_length),
         description,
         isAvailable,
         price,
@@ -154,3 +179,168 @@ export const updateLand = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
+
+export const addRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.body) {
+      return res.status(400).json({
+        message:
+          "Request body is missing. Please send rating data in JSON format.",
+      });
+    }
+
+    console.log("Request body received:", req.body);
+
+    const { rating, review } = req.body;
+    const userId = req.user._id;
+
+    if (rating === undefined || rating === null) {
+      return res.status(400).json({
+        message: "Rating is required. Please provide a rating between 1 and 5.",
+      });
+    }
+
+    if (review && review.length > 500) {
+      return res.status(400).json({
+        message: "Review must be less than 500 characters",
+      });
+    }
+
+    const land = await Land.findById(id);
+    if (!land) {
+      return res.status(404).json({ message: "Land not found" });
+    }
+
+    if (land.owner.toString() === userId.toString()) {
+      return res.status(403).json({
+        message: "You cannot rate your own land",
+      });
+    }
+
+    await land.addRatingAndReview(userId, rating, review || "");
+
+    await land.populate("ratingsAndReviews.user", "name email");
+
+    res.status(200).json({
+      success: true,
+      message: "Rating and review added successfully",
+      averageRating: land.averageRating,
+      totalRatings: land.totalRatings,
+      ratingsAndReviews: land.ratingsAndReviews,
+    });
+  } catch (error) {
+    console.error("Error adding rating and review:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+export const getLandRatings = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const land = await Land.findById(id)
+      .populate("ratingsAndReviews.user", "name email")
+      .select("ratingsAndReviews averageRating totalRatings location spot");
+
+    if (!land) {
+      return res.status(404).json({ message: "Land not found" });
+    }
+
+    const sortedReviews = land.ratingsAndReviews.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.status(200).json({
+      success: true,
+      landInfo: {
+        location: land.location,
+        spot: land.spot,
+      },
+      averageRating: land.averageRating,
+      totalRatings: land.totalRatings,
+      ratingsAndReviews: sortedReviews,
+    });
+  } catch (error) {
+    console.error("Error getting ratings and reviews:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+// export const updateRating = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { rating, review } = req.body;
+//     const userId = req.user._id;
+
+//     if (review && review.length > 500) {
+//       return res.status(400).json({
+//         message: "Review must be less than 500 characters"
+//       });
+//     }
+
+//     const land = await Land.findById(id);
+//     if (!land) {
+//       return res.status(404).json({ message: "Land not found" });
+//     }
+
+//     const existingRating = land.ratingsAndReviews.find(
+//       (item) => item.user.toString() === userId.toString()
+//     );
+
+//     if (!existingRating) {
+//       return res.status(404).json({
+//         message: "You haven't rated this land yet"
+//       });
+//     }
+
+//     await land.addRatingAndReview(userId, rating, review || '');
+//     await land.populate('ratingsAndReviews.user', 'name email');
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Rating and review updated successfully",
+//       averageRating: land.averageRating,
+//       totalRatings: land.totalRatings,
+//       ratingsAndReviews: land.ratingsAndReviews,
+//     });
+//   } catch (error) {
+//     console.error("Error updating rating and review:", error);
+//     res.status(500).json({ message: "Server Error", error: error.message });
+//   }
+// };
+
+// export const removeRating = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userId = req.user._id;
+
+//     const land = await Land.findById(id);
+//     if (!land) {
+//       return res.status(404).json({ message: "Land not found" });
+//     }
+
+//     const existingRating = land.ratingsAndReviews.find(
+//       (item) => item.user.toString() === userId.toString()
+//     );
+
+//     if (!existingRating) {
+//       return res.status(404).json({
+//         message: "You haven't rated this land"
+//       });
+//     }
+
+//     await land.removeRatingAndReview(userId);
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Rating and review removed successfully",
+//       averageRating: land.averageRating,
+//       totalRatings: land.totalRatings,
+//     });
+//   } catch (error) {
+//     console.error("Error removing rating and review:", error);
+//     res.status(500).json({ message: "Server Error", error: error.message });
+//   }
+// };
