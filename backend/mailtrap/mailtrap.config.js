@@ -5,11 +5,19 @@ dotenv.config();
 
 const TOKEN = process.env.MAILTRAP_TOKEN;
 
-export const transport = Nodemailer.createTransport(
-  MailtrapTransport({
-    token: TOKEN,
-  })
-);
+export const transport = Nodemailer.createTransport({
+  // MailtrapTransport({
+  //   token: TOKEN,
+  // })
+  //This part will use when we have website domain
+
+  host: '94gkoukuuv.houseoffoss.net',
+  port: 1025,
+  auth:{
+    user: "user1",
+    pass: "password1"
+  }
+});
 
 export const sender = {
   address: "hello@demomailtrap.co",
