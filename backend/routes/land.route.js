@@ -2,7 +2,7 @@ import express from "express";
 import { landOwnerRoute, protectRoute } from "../middleware/auth.middleware.js";
 import {
   createLand,
-  getAllLand,
+  getOwnerAllLand,
   deleteLand,
   updateLand,
   filterLands,
@@ -12,7 +12,7 @@ import {
 const router = express.Router();
 
 // Land CRUD operations
-router.get("/lands", protectRoute, landOwnerRoute, getAllLand);
+router.get("/lands", protectRoute, landOwnerRoute, getOwnerAllLand);
 router.post("/addland", protectRoute, landOwnerRoute, createLand);
 router.post("/updateland/:id", protectRoute, landOwnerRoute, updateLand);
 router.delete("/deleteland/:id", protectRoute, landOwnerRoute, deleteLand);

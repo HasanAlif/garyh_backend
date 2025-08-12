@@ -116,7 +116,7 @@ export const BOOKING_VERIFICATION_CODE = `
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
     .header {
-      background: linear-gradient(90deg, #1e3c72, #2a5298);
+      background: linear-gradient(90deg, #4CAF50, #45a049);
       color: #ffffff;
       padding: 20px;
       text-align: center;
@@ -139,7 +139,7 @@ export const BOOKING_VERIFICATION_CODE = `
       display: inline-block;
       letter-spacing: 4px;
       margin: 20px 0;
-      color: #1e3c72;
+      color: #4CAF50;
     }
     .footer {
       background-color: #f0f4f8;

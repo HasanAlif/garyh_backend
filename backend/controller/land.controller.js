@@ -66,13 +66,69 @@ export const createLand = async (req, res) => {
   }
 };
 
-export const getAllLand = async (req, res) => {
+export const getOwnerAllLand = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const lands = await Land.find({ owner: userId }).populate(
+      "owner",
+      "name email"
+    );
+
+    res.json({
+      message: `Found ${lands.length} land(s) owned by you`,
+      lands,
+      totalLands: lands.length,
+    });
+  } catch (error) {
+    console.error("Error fetching user's lands:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+export const getAvailableLand = async (req, res) => {
+  try {
+    // Find only lands that are available for booking
+    const availableLands = await Land.find({ isAvailable: true })
+      .populate("owner", "name email") // Include owner information
+      .populate("ratingsAndReviews.user", "name") // Include reviewer names
+      .sort({ createdAt: -1 }); // Sort by newest first
+
+    res.json({
+      message: `Found ${availableLands.length} available land(s) for booking`,
+      availableLands,
+      totalAvailable: availableLands.length,
+    });
+  } catch (error) {
+    console.error("Error fetching available lands:", error);
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
+export const getAllLands = async (req, res) => {
   try {
     const lands = await Land.find({});
 
-    res.json({ lands });
+    if (lands.length === 0) {
+      return res.status(404).json({
+        message: "No lands found",
+      });
+    }
+
+    res.status(200).json({
+      message: `Found ${lands.length} land(s)`,
+      lands,
+      totalLands: lands.length,
+    });
   } catch (error) {
-    res.status(500).json({ message: "Server Error", error });
+    console.error("Error fetching all lands:", error);
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
   }
 };
 
@@ -123,21 +179,21 @@ export const deleteLand = async (req, res) => {
 
     // Check if the current user is the owner of this land
     if (land.owner.toString() !== userId.toString()) {
-      return res.status(403).json({ 
-        message: "Access denied. You can only delete your own land listings." 
+      return res.status(403).json({
+        message: "Access denied. You can only delete your own land listings.",
       });
     }
 
     // If ownership is verified, proceed with deletion
     await Land.findByIdAndDelete(id);
-    
-    res.status(200).json({ 
+
+    res.status(200).json({
       message: "Land deleted successfully",
       deletedLand: {
         id: land._id,
         location: land.location,
-        spot: land.spot
-      }
+        spot: land.spot,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
@@ -169,12 +225,13 @@ export const updateLand = async (req, res) => {
     }
 
     if (existingLand.owner.toString() !== userId.toString()) {
-      return res.status(403).json({ 
-        message: "Access denied. You can only update your own land listings." 
+      return res.status(403).json({
+        message: "Access denied. You can only update your own land listings.",
       });
     }
 
     const parseArrayField = (field) => {
+      if (field === undefined || field === null) return undefined;
       if (typeof field === "string") {
         try {
           const parsed = JSON.parse(field);
@@ -186,29 +243,52 @@ export const updateLand = async (req, res) => {
       return Array.isArray(field) ? field : [field];
     };
 
-    const land = await Land.findByIdAndUpdate(
-      id,
-      {
-        location,
-        image,
-        spot,
-        amenities: parseArrayField(amenities),
-        rv_type: parseArrayField(rv_type),
-        max_slide: parseArrayField(max_slide),
-        site_types: parseArrayField(site_types),
-        site_length: parseArrayField(site_length),
-        description,
-        isAvailable,
-        price,
-      },
-      { new: true }
-    );
+    const updateData = {};
 
-    res.status(200).json({ 
-      message: "Land updated successfully", 
-      land 
+    if (location !== undefined) updateData.location = location;
+    if (image !== undefined) updateData.image = image;
+    if (spot !== undefined) updateData.spot = spot;
+    if (description !== undefined) updateData.description = description;
+    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+    if (price !== undefined) updateData.price = price;
+
+    if (amenities !== undefined) {
+      const parsedAmenities = parseArrayField(amenities);
+      if (parsedAmenities !== undefined) updateData.amenities = parsedAmenities;
+    }
+    if (rv_type !== undefined) {
+      const parsedRvType = parseArrayField(rv_type);
+      if (parsedRvType !== undefined) updateData.rv_type = parsedRvType;
+    }
+    if (max_slide !== undefined) {
+      const parsedMaxSlide = parseArrayField(max_slide);
+      if (parsedMaxSlide !== undefined) updateData.max_slide = parsedMaxSlide;
+    }
+    if (site_types !== undefined) {
+      const parsedSiteTypes = parseArrayField(site_types);
+      if (parsedSiteTypes !== undefined)
+        updateData.site_types = parsedSiteTypes;
+    }
+    if (site_length !== undefined) {
+      const parsedSiteLength = parseArrayField(site_length);
+      if (parsedSiteLength !== undefined)
+        updateData.site_length = parsedSiteLength;
+    }
+
+    console.log("Fields to update:", Object.keys(updateData));
+
+    const land = await Land.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.status(200).json({
+      message: "Land updated successfully",
+      land,
+      updatedFields: Object.keys(updateData),
     });
   } catch (error) {
+    console.error("Update error:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
@@ -393,7 +473,8 @@ export const filterLands = async (req, res) => {
 
     console.log("Filter parameters received:", req.query);
 
-    const query = {};
+    // Base query - only show available lands for public filtering
+    const query = { isAvailable: true };
 
     if (minPrice && minPrice.trim() !== "") {
       query.price = { ...query.price, $gte: Number(minPrice) };
@@ -475,7 +556,6 @@ export const filterLands = async (req, res) => {
   }
 };
 
-
 export const searchByLocation = async (req, res) => {
   try {
     const { location } = req.query;
@@ -483,20 +563,23 @@ export const searchByLocation = async (req, res) => {
     if (!location) {
       return res.status(400).json({
         success: false,
-        message: "Please provide a location to search."
+        message: "Please provide a location to search.",
       });
     }
 
     const lands = await Land.find({
-      location: { $regex: location, $options: "i" }
-    });
+      location: { $regex: location, $options: "i" },
+      isAvailable: true, // Only show available lands in search results
+    })
+      .populate("owner", "name email")
+      .populate("ratingsAndReviews.user", "name")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       count: lands.length,
-      data: lands
+      data: lands,
     });
-
   } catch (error) {
     console.error("Error searching by location:", error);
     res.status(500).json({ success: false, message: "Server Error" });
