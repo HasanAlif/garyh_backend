@@ -93,3 +93,85 @@ export const PASSWORD_RESET_REQUEST_TEMPLATE = `
 </body>
 </html>
 `;
+
+export const BOOKING_VERIFICATION_CODE = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Booking Verification Code</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f6f9fc;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: linear-gradient(90deg, #1e3c72, #2a5298);
+      color: #ffffff;
+      padding: 20px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .content {
+      padding: 30px;
+      text-align: center;
+      color: #333333;
+    }
+    .code {
+      font-size: 28px;
+      font-weight: bold;
+      background-color: #f0f4f8;
+      padding: 15px 25px;
+      border-radius: 8px;
+      display: inline-block;
+      letter-spacing: 4px;
+      margin: 20px 0;
+      color: #1e3c72;
+    }
+    .footer {
+      background-color: #f0f4f8;
+      padding: 15px;
+      text-align: center;
+      font-size: 12px;
+      color: #777777;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>Booking Verification</h1>
+    </div>
+    <div class="content">
+      <p>Hello,</p>
+      <p>Thank you for booking with <b>RVnBO.com </b>!  
+         Please use the following verification code to confirm your booking:</p>
+      
+      <div class="code">{CODE}</div>
+      
+      <p>This code will expire in <b>10 minutes</b>.</p>
+      <p>If you did not initiate this booking, please ignore this email.</p>
+    </div>
+    <div class="footer">
+      &copy; 2025 RVnBO.com , All rights reserved.
+    </div>
+  </div>
+
+</body>
+</html>
+
+`;

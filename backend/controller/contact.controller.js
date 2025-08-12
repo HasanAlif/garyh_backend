@@ -1,4 +1,4 @@
-import { transport, sender } from "../mailtrap/mailtrap.config.js";
+import { transport } from "../mailtrap/mailtrap.config.js";
 
 export const handleContactFormSubmission = async (req, res) => {
   const { name, email, subject, message } = req.body;
@@ -11,7 +11,7 @@ export const handleContactFormSubmission = async (req, res) => {
 
   try {
     const response = await transport.sendMail({
-      from: sender,
+      from: email,
       to: recipient,
       subject: `Contact Form: ${subject}`,
       html: `

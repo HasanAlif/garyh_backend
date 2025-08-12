@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.route.js";
 import landRoutes from "./routes/land.route.js";
 import travelerRoutes from "./routes/traveler.route.js";
 import contactRoutes from "./routes/contact.route.js";
+import bookingRoutes from "./routes/booking.route.js";
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use("/api/landowner", landRoutes);
 app.use("/api/lands", landRoutes);
 app.use("/api/traveler", travelerRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/booking", bookingRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
