@@ -585,3 +585,24 @@ export const searchByLocation = async (req, res) => {
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+
+export const getFeaturedLand = async (req, res) => {
+  try {
+    const featuredLands = await Land.find({ isAvailable: true })
+      .sort({ createdAt: -1 })
+      .limit(2);
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${featuredLands.length} featured land(s)`,
+      featuredLands,
+      note: "Featured lands are the 2 most recently added available lands",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};

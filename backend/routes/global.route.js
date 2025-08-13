@@ -4,6 +4,7 @@ import {
   filterLands,
   getAllLands,
   getAvailableLand,
+  getFeaturedLand,
   searchByLocation,
 } from "../controller/land.controller.js";
 
@@ -14,5 +15,6 @@ router.get("/search", searchByLocation);
 router.get("/filter", filterLands);
 router.get("/available-lands", getAvailableLand);
 router.get("/all-lands", getAllLands);
+router.get("/featured-lands", getFeaturedLand);
 
 export default router;
