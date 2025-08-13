@@ -7,6 +7,7 @@ import landRoutes from "./routes/land.route.js";
 import travelerRoutes from "./routes/traveler.route.js";
 import contactRoutes from "./routes/contact.route.js";
 import bookingRoutes from "./routes/booking.route.js";
+import globalRoutes from "./routes/global.route.js";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use("/api/lands", landRoutes);
 app.use("/api/traveler", travelerRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/booking", bookingRoutes);
+app.use("/api/global", globalRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

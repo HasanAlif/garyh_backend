@@ -18,7 +18,7 @@ router.post("/updateland/:id", protectRoute, landOwnerRoute, updateLand);
 router.delete("/deleteland/:id", protectRoute, landOwnerRoute, deleteLand);
 
 // Filter lands using query parameters
-router.get("/filter", filterLands);
-router.get("/search", searchByLocation);
+router.get("/filter", protectRoute, filterLands);
+router.get("/search", protectRoute, searchByLocation);
 
 export default router;
