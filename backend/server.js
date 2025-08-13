@@ -8,14 +8,15 @@ import travelerRoutes from "./routes/traveler.route.js";
 import contactRoutes from "./routes/contact.route.js";
 import bookingRoutes from "./routes/booking.route.js";
 import globalRoutes from "./routes/global.route.js";
+import dashboardRoutes from "./routes/dashboard.route.js";
+import { cancelExpiredBookings } from "./controller/booking.controller.js";
 
 dotenv.config();
 
 const app = express();
 
-// Body parsing middleware - must be before routes
-app.use(express.json({ limit: '10mb' })); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Parse URL-encoded bodies
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
 const PORT = process.env.PORT || 5000;
@@ -27,8 +28,13 @@ app.use("/api/traveler", travelerRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/booking", bookingRoutes);
 app.use("/api/global", globalRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server is running on http://localhost:${PORT}`);
-  connectDB();
+  await connectDB();
+  await cancelExpiredBookings();
+  setInterval(async () => {
+    await cancelExpiredBookings();
+  }, 5 * 60 * 1000);
 });

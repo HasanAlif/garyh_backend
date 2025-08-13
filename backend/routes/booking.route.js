@@ -1,5 +1,5 @@
 import express from 'express';
-import { bookingLand, verifyBooking } from '../controller/booking.controller.js';
+import { bookingLand, verifyBooking, getUserBookings } from '../controller/booking.controller.js';
 import { protectRoute } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
