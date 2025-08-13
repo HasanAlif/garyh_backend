@@ -10,15 +10,22 @@ import {
   getAvailableLand,
   getAllLands,
 } from "../controller/land.controller.js";
+import {
+  saveLand,
+  unsaveLand,
+  getSavedLands,
+} from "../controller/saveland.controller.js";
 
-// Rating operations
 router.post("/rating/:id", protectRoute, addRating);
 router.get("/rating/:id", getLandRatings);
-
 // router.put("/rating/:id", protectRoute, updateRating);
 // router.delete("/rating/:id", protectRoute, removeRating);
 
 router.get("/available-lands", protectRoute, getAvailableLand);
 router.get("/all-lands", protectRoute, getAllLands);
+
+router.post("/save/:landId", protectRoute, saveLand);
+router.delete("/unsave/:landId", protectRoute, unsaveLand);
+router.get("/saved-lands", protectRoute, getSavedLands);
 
 export default router;

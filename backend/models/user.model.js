@@ -1,38 +1,46 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, "Name is required"],
-  },
-  email: {
-    type: String,
-    required: [true, "Email is required"],
-    unique: true,
-    lowercase: true,
-    trim: true,
-  },
-  password: {
-    type: String,
-    required: [true, "Password is required"],
-  },
-  role: {
-        type: String,
-        enum: ["traveler", "land owner"],
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Name is required"],
     },
-  isVerified: {
-    type: Boolean,
-    default: false,
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+    },
+    role: {
+      type: String,
+      enum: ["traveler", "land owner"],
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    savedLands: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Land",
+      },
+    ],
+    resetPasswordToken: String,
+    resetPasswordExpiresAt: Date,
+    verificationToken: String,
+    verificationTokenExpiresAt: Date,
   },
-  resetPasswordToken: String,
-  resetPasswordExpiresAt: Date,
-  verificationToken: String,
-  verificationTokenExpiresAt: Date,
-},
-{
-  timestamps: true,
-});
+  {
+    timestamps: true,
+  }
+);
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
