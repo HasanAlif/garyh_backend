@@ -22,6 +22,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["traveler", "land owner"],
     },
+    phoneNumber: {
+      type: String,
+    },
+    image: {
+      type: String,
+      default: null,
+    },
     isVerified: {
       type: Boolean,
       default: false,
@@ -34,6 +41,11 @@ const userSchema = new mongoose.Schema(
     ],
     resetPasswordToken: String,
     resetPasswordExpiresAt: Date,
+    resetCodeVerified: {
+      type: Boolean,
+      default: false,
+    },
+    resetCodeVerifiedAt: Date,
     verificationToken: String,
     verificationTokenExpiresAt: Date,
   },

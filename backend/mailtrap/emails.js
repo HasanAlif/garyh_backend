@@ -52,15 +52,15 @@ export const sendWelcomeEmail = async (email, name) => {
   }
 };
 
-export const sendPasswordResetEmail = async (email, resetURL) => {
+export const sendPasswordResetEmail = async (email, resetCode) => {
   const recipient = email;
 
   try {
     const response = await transport.sendMail({
       from: sender,
       to: recipient,
-      subject: "Password Reset Request",
-      html: PASSWORD_RESET_REQUEST_TEMPLATE.replace("{resetURL}", resetURL),
+      subject: "Password Reset Verification Code",
+      html: PASSWORD_RESET_REQUEST_TEMPLATE.replace("{resetCode}", resetCode),
       category: "Password Reset",
     });
 

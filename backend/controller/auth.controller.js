@@ -1,8 +1,10 @@
 import User from "../models/user.model.js";
+import TempUser from "../models/tempUser.model.js";
 //import { redis } from "../lib/redis.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import cloudinary from "../lib/cloudinary.js";
 import {
   sendVerificationEmail,
   sendWelcomeEmail,
@@ -73,9 +75,16 @@ export const Signup = async (req, res) => {
       .json({ message: "Password must be 8 characters long" });
   }
 
-  const userexists = await User.findOne({ email });
-  if (userexists) {
+  const userExists = await User.findOne({ email });
+  if (userExists) {
     return res.status(400).json({ message: "User Already Exists" });
+  }
+
+  const tempUserExists = await TempUser.findOne({ email });
+  if (tempUserExists) {
+    return res.status(400).json({
+      message: "Email verification already sent. Please check your email.",
+    });
   }
 
   try {
@@ -83,7 +92,7 @@ export const Signup = async (req, res) => {
       100000 + Math.random() * 900000
     ).toString();
 
-    const newUser = new User({
+    const tempUser = new TempUser({
       name,
       email,
       password,
@@ -92,27 +101,16 @@ export const Signup = async (req, res) => {
       verificationTokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    await newUser.save();
+    await tempUser.save();
 
-    // const { accessToken, refreshToken } = generateTokens(newUser._id);
-    // await storeRefreshToken(newUser._id, refreshToken);
-    // setCookies(res, accessToken, refreshToken);
+    await sendVerificationEmail(email, verificationToken);
 
-    generateTokenAndSetCookie(res, newUser._id);
-
-    await sendVerificationEmail(newUser.email, verificationToken);
-
-    return res.status(201).json({
-      user: {
-        _id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-      },
-      message: "User created successfully",
+    return res.status(200).json({
+      message: "Check your email to verify your account.",
+      email: email,
     });
   } catch (error) {
-    console.error("Error creating user:", error);
+    console.error("Error in signup process:", error);
     return res
       .status(500)
       .json({ message: "Internal server error", error: error.message });
@@ -123,29 +121,49 @@ export const verifyEmail = async (req, res) => {
   const { code } = req.body;
 
   try {
-    const user = await User.findOne({
+    const tempUser = await TempUser.findOne({
       verificationToken: code,
       verificationTokenExpiresAt: { $gt: new Date() },
     });
 
-    if (!user) {
+    if (!tempUser) {
       return res
         .status(404)
         .json({ message: "Invalid or expired verification code" });
     }
 
-    user.isVerified = true;
-    user.verificationToken = undefined;
-    user.verificationTokenExpiresAt = undefined;
-    await user.save();
+    const existingUser = await User.findOne({ email: tempUser.email });
+    if (existingUser) {
+      await TempUser.findByIdAndDelete(tempUser._id);
+      return res.status(400).json({
+        message: "User already exists. Please login instead.",
+      });
+    }
 
-    await sendWelcomeEmail(user.email, user.name);
+    const newUser = new User({
+      name: tempUser.name,
+      email: tempUser.email,
+      password: tempUser.password,
+      role: tempUser.role,
+      isVerified: true,
+    });
 
-    return res.status(200).json({
-      message: "Email verified successfully",
+    await newUser.save();
+
+    await TempUser.findByIdAndDelete(tempUser._id);
+
+    generateTokenAndSetCookie(res, newUser._id);
+
+    await sendWelcomeEmail(newUser.email, newUser.name);
+
+    return res.status(201).json({
+      message: "Account Created Successfully!",
       user: {
-        ...user._doc,
-        password: undefined, // Exclude password from response
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        isVerified: newUser.isVerified,
       },
     });
   } catch (error) {
@@ -160,6 +178,9 @@ export const Login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "User is not Registered" });
+    }
     if (user && (await user.comparePassword(password))) {
       // const { accessToken, refreshToken } = generateTokens(user._id);
       // await storeRefreshToken(user._id, refreshToken);
@@ -178,7 +199,7 @@ export const Login = async (req, res) => {
         accessToken,
       });
     } else {
-      return res.status(400).json({ message: "Invalid email or password" });
+      return res.status(400).json({ message: "Invalid Email or Password" });
     }
   } catch (error) {
     console.error("Error logging in:", error);
@@ -255,20 +276,20 @@ export const forgotPassword = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Generate a password reset token
-    const resetToken = crypto.randomBytes(20).toString("hex");
-    const resetTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpiresAt = resetTokenExpiresAt;
+    user.resetPasswordToken = resetCode;
+    user.resetPasswordExpiresAt = resetCodeExpiresAt;
     await user.save();
 
-    const resetURL = `${process.env.CLIENT_URL}/api/auth/reset-password/${resetToken}`;
-    console.log("Generated reset URL:", resetURL);
+    await sendPasswordResetEmail(user.email, resetCode);
 
-    await sendPasswordResetEmail(user.email, resetURL);
-
-    return res.status(200).json({ message: "Password reset email sent" });
+    return res.status(200).json({
+      message:
+        "Password reset verification code sent to your email. Please check your email.",
+      email: email,
+    });
   } catch (error) {
     console.error("Error sending password reset email:", error);
     return res
@@ -277,28 +298,97 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-export const resetPassword = async (req, res) => {
-  const { token } = req.params;
-  const { password } = req.body;
+export const verifyResetCode = async (req, res) => {
+  const { code } = req.body;
 
   try {
+    if (!code) {
+      return res.status(400).json({
+        message: "Verification code is required",
+      });
+    }
+
     const user = await User.findOne({
-      resetPasswordToken: token,
+      resetPasswordToken: code,
       resetPasswordExpiresAt: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid or expired token" });
+      return res.status(400).json({
+        message: "Invalid or expired verification code",
+      });
     }
 
-    user.password = password;
+    user.resetCodeVerified = true;
+    user.resetCodeVerifiedAt = new Date();
+    await user.save();
+
+    res.status(200).json({
+      message: "Verification code confirmed. You can now reset your password.",
+      verified: true,
+    });
+  } catch (error) {
+    console.error("Error verifying reset code:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const { newPassword, confirmPassword } = req.body;
+
+  try {
+    if (!newPassword || !confirmPassword) {
+      return res.status(400).json({
+        message: "New password and confirm password are required",
+      });
+    }
+
+    // Find user who has verified reset code recently
+    const user = await User.findOne({
+      resetCodeVerified: true,
+      resetCodeVerifiedAt: { $exists: true },
+    }).sort({ resetCodeVerifiedAt: -1 }); // Get the most recently verified user
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Please verify your reset code first before changing password",
+      });
+    }
+
+    const verificationAge =
+      Date.now() - new Date(user.resetCodeVerifiedAt).getTime();
+    const fifteenMinutes = 15 * 60 * 1000;
+
+    if (verificationAge > fifteenMinutes) {
+      return res.status(400).json({
+        message:
+          "Verification has expired. Please request a new password reset",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters long",
+      });
+    }
+
+    user.password = newPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpiresAt = undefined;
+    user.resetCodeVerified = false;
+    user.resetCodeVerifiedAt = undefined;
     await user.save();
 
     await sendResetSuccessEmail(user.email);
 
-    res.status(200).json({ message: "Password reset successful" });
+    res.status(200).json({
+      message:
+        "Password reset successful! You can now login with your new password.",
+    });
   } catch (error) {
     console.error("Error resetting password:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -368,5 +458,97 @@ export const updatePassword = async (req, res) => {
   } catch (error) {
     console.error("Error updating password:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { name, phoneNumber, image } = req.body;
+
+    if (!name && !phoneNumber && !image) {
+      return res.status(400).json({
+        message: "At least one field (name, phoneNumber, or image) is required",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const updateData = {};
+
+    if (name) {
+      if (name.trim().length < 2) {
+        return res.status(400).json({
+          message: "Name must be at least 2 characters long",
+        });
+      }
+      updateData.name = name.trim();
+    }
+
+    if (phoneNumber) {
+      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+      if (!phoneRegex.test(phoneNumber)) {
+        return res.status(400).json({
+          message: "Please enter a valid phone number",
+        });
+      }
+      updateData.phoneNumber = phoneNumber;
+    }
+
+    if (image) {
+      try {
+        if (user.image) {
+          const publicId = user.image.split("/").pop().split(".")[0];
+          await cloudinary.uploader.destroy(`profile_images/${publicId}`);
+        }
+
+        const cloudinaryResponse = await cloudinary.uploader.upload(image, {
+          folder: "profile_images",
+          transformation: [
+            { width: 400, height: 400, crop: "fill" },
+            { quality: "auto" },
+            { format: "auto" },
+          ],
+        });
+
+        updateData.image = cloudinaryResponse.secure_url;
+      } catch (cloudinaryError) {
+        console.error("Cloudinary upload error:", cloudinaryError);
+        return res.status(400).json({
+          message: "Failed to upload image. Please try again.",
+        });
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true,
+      select: "-password",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        phoneNumber: updatedUser.phoneNumber,
+        image: updatedUser.image,
+        isVerified: updatedUser.isVerified,
+      },
+      updatedFields: Object.keys(updateData),
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
