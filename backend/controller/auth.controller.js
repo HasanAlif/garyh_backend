@@ -64,6 +64,10 @@ const generateTokenAndSetCookie = (res, userId) => {
 export const Signup = async (req, res) => {
   const { name, email, password, role } = req.body;
 
+  if (!name || !email || !password || !role) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || !emailRegex.test(email)) {
     return res.status(400).json({ message: "Invalid Email Address" });
@@ -113,7 +117,7 @@ export const Signup = async (req, res) => {
     console.error("Error in signup process:", error);
     return res
       .status(500)
-      .json({ message: "Internal server error", error: error.message });
+      .json({ message: "Registration failed" });
   }
 };
 
@@ -315,7 +319,7 @@ export const verifyResetCode = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({
-        message: "Invalid or expired verification code",
+        message: "Invalid Code",
       });
     }
 
@@ -351,7 +355,7 @@ export const resetPassword = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({
-        message: "Please verify your reset code first before changing password",
+        message: "Verify reset code before changing your Password",
       });
     }
 
@@ -419,7 +423,19 @@ export const checkAuth = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    res.json(req.user);
+    const user = req.user;
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        image: user.image,
+      },
+    });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return res
