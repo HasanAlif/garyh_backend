@@ -55,14 +55,27 @@ const generateTokenAndSetCookie = (res, userId) => {
     sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
+
+  return accessToken;
 };
 
 export const Signup = async (req, res) => {
   const { name, email, password, role } = req.body;
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    return res.status(400).json({ message: "Invalid Email Address" });
+  }
+
+  if (password && password.length < 8) {
+    return res
+      .status(400)
+      .json({ message: "Password must be 8 characters long" });
+  }
+
   const userexists = await User.findOne({ email });
   if (userexists) {
-    return res.status(400).json({ message: "User already exists" });
+    return res.status(400).json({ message: "User Already Exists" });
   }
 
   try {
@@ -100,7 +113,9 @@ export const Signup = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating user:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 };
 
@@ -150,16 +165,17 @@ export const Login = async (req, res) => {
       // await storeRefreshToken(user._id, refreshToken);
       // setCookies(res, accessToken, refreshToken);
 
-      generateTokenAndSetCookie(res, user._id);
+      const accessToken = generateTokenAndSetCookie(res, user._id);
 
       res.status(200).json({
+        message: "Login successful",
         user: {
           _id: user._id,
           name: user.name,
           email: user.email,
           role: user.role,
         },
-        message: "Login successful",
+        accessToken,
       });
     } else {
       return res.status(400).json({ message: "Invalid email or password" });
