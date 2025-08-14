@@ -71,3 +71,64 @@ export const AllBookingLand = async (req, res) => {
     });
   }
 };
+
+
+export const allRatingReviews = async (req, res) => {
+  try {
+    const landownerId = req.user._id;
+
+    const lands = await Land.find({ owner: landownerId })
+      .populate({
+        path: "ratingsAndReviews.user",
+        select: "name"
+      })
+      .select("spot ratingsAndReviews");
+
+    if (!lands.length) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "No lands found for this landowner" 
+      });
+    }
+
+    const allReviews = [];
+    
+    lands.forEach(land => {
+      if (land.ratingsAndReviews && land.ratingsAndReviews.length > 0) {
+        land.ratingsAndReviews.forEach(reviewItem => {
+          // Only include reviews that have actual review text
+          if (reviewItem.review && reviewItem.review.trim() !== "") {
+            allReviews.push({
+              travelerName: reviewItem.user?.name || "Unknown",
+              spotName: land.spot || "Unknown",
+              rating: reviewItem.rating,
+              review: reviewItem.review,
+              reviewDate: new Date(reviewItem.createdAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              })
+            });
+          }
+        });
+      }
+    });
+
+    // Sort reviews by date (newest first)
+    allReviews.sort((a, b) => new Date(b.reviewDate) - new Date(a.reviewDate));
+
+    res.status(200).json({
+      success: true,
+      totalReviews: allReviews.length,
+      reviews: allReviews
+    });
+
+  } catch (error) {
+    console.error("Error fetching landowner reviews:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
