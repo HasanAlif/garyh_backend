@@ -4,6 +4,7 @@ import {
   Login,
   Logout,
   verifyEmail,
+  resendVerificationCode,
   forgotPassword,
   verifyResetCode,
   resetPassword,
@@ -23,6 +24,7 @@ router.post("/logout", Logout);
 //router.post("/refresh-token", RefreshToken);
 
 router.post("/verify-email", verifyEmail);
+router.post("/resend-verification-code", resendVerificationCode);
 
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-reset-code", verifyResetCode);

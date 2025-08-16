@@ -19,7 +19,7 @@ const tempUserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["traveler", "land owner"],
+      enum: ["traveler", "landowner"],
     },
     verificationToken: String,
     verificationTokenExpiresAt: Date,

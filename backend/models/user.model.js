@@ -20,7 +20,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["traveler", "land owner"],
+      required: [true, "Role is required"],
+      enum: ["traveler", "landowner"],
     },
     phoneNumber: {
       type: String,

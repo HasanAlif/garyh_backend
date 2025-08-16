@@ -102,7 +102,7 @@ export const Signup = async (req, res) => {
       password,
       role,
       verificationToken,
-      verificationTokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      verificationTokenExpiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
     });
 
     await tempUser.save();
@@ -115,9 +115,7 @@ export const Signup = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in signup process:", error);
-    return res
-      .status(500)
-      .json({ message: "Registration failed" });
+    return res.status(500).json({ message: "Registration failed" });
   }
 };
 
@@ -131,9 +129,7 @@ export const verifyEmail = async (req, res) => {
     });
 
     if (!tempUser) {
-      return res
-        .status(404)
-        .json({ message: "Code is Invalid or Expired" });
+      return res.status(404).json({ message: "Code is Invalid or Expired" });
     }
 
     const existingUser = await User.findOne({ email: tempUser.email });
@@ -175,6 +171,54 @@ export const verifyEmail = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Internal server error: " + error.message });
+  }
+};
+
+export const resendVerificationCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        message: "User already exists and is verified. Please login instead.",
+      });
+    }
+
+    const tempUser = await TempUser.findOne({ email });
+    if (!tempUser) {
+      return res.status(404).json({
+        message:
+          "No pending verification found for this email. Please signup first.",
+      });
+    }
+
+    const newVerificationToken = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+
+    tempUser.verificationToken = newVerificationToken;
+    tempUser.verificationTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await tempUser.save();
+
+    await sendVerificationEmail(email, newVerificationToken);
+
+    res.status(200).json({
+      success: true,
+      message: "New verification code sent to your email",
+      email: email,
+    });
+  } catch (error) {
+    console.error("Error resending verification code:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to resend verification code",
+      error: error.message,
+    });
   }
 };
 
@@ -454,7 +498,9 @@ export const updatePassword = async (req, res) => {
     }
 
     if (newPassword.length < 8) {
-      return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters long" });
     }
 
     if (newPassword !== confirmPassword) {
@@ -488,7 +534,8 @@ export const updateProfile = async (req, res) => {
 
     if (!name && !phoneNumber && !address && !image) {
       return res.status(400).json({
-        message: "At least one field (name, phoneNumber, address, or image) is required",
+        message:
+          "At least one field (name, phoneNumber, address, or image) is required",
       });
     }
 
