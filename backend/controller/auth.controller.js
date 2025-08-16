@@ -133,7 +133,7 @@ export const verifyEmail = async (req, res) => {
     if (!tempUser) {
       return res
         .status(404)
-        .json({ message: "Invalid or expired verification code" });
+        .json({ message: "Code is Invalid or Expired" });
     }
 
     const existingUser = await User.findOne({ email: tempUser.email });
@@ -453,6 +453,10 @@ export const updatePassword = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters long" });
+    }
+
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ message: "New passwords do not match" });
     }
@@ -480,11 +484,11 @@ export const updatePassword = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { name, phoneNumber, image } = req.body;
+    const { name, phoneNumber, address, image } = req.body;
 
-    if (!name && !phoneNumber && !image) {
+    if (!name && !phoneNumber && !address && !image) {
       return res.status(400).json({
-        message: "At least one field (name, phoneNumber, or image) is required",
+        message: "At least one field (name, phoneNumber, address, or image) is required",
       });
     }
 
@@ -512,6 +516,15 @@ export const updateProfile = async (req, res) => {
         });
       }
       updateData.phoneNumber = phoneNumber;
+    }
+
+    if (address) {
+      if (address.trim().length < 5) {
+        return res.status(400).json({
+          message: "Address must be at least 5 characters long",
+        });
+      }
+      updateData.address = address.trim();
     }
 
     if (image) {
@@ -554,6 +567,7 @@ export const updateProfile = async (req, res) => {
         email: updatedUser.email,
         role: updatedUser.role,
         phoneNumber: updatedUser.phoneNumber,
+        address: updatedUser.address,
         image: updatedUser.image,
         isVerified: updatedUser.isVerified,
       },
