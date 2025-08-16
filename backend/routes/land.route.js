@@ -7,6 +7,7 @@ import {
   updateLand,
   filterLands,
   searchByLocation,
+  getLandOwnerFeatured
 } from "../controller/land.controller.js";
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.delete("/deleteland/:id", protectRoute, landOwnerRoute, deleteLand);
 // Filter lands using query parameters
 router.get("/filter", protectRoute, filterLands);
 router.get("/search", protectRoute, searchByLocation);
+router.get("/feature-lands", protectRoute, landOwnerRoute, getLandOwnerFeatured);
 
 export default router;

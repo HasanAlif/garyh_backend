@@ -606,3 +606,26 @@ export const getFeaturedLand = async (req, res) => {
     });
   }
 };
+
+export const getLandOwnerFeatured = async (req, res) => {
+  try {
+    const ownerId = req.user._id;
+
+    const featuredLands = await Land.find({ owner: ownerId})
+      .sort({ createdAt: -1 })
+      .limit(4);
+
+    res.status(200).json({
+      success: true,
+      message: `Here are ${featuredLands.length} featured land(s) for owner ${ownerId}`,
+      featuredLands,
+      note: "Featured lands are the 4 most recently added available lands",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};

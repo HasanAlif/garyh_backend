@@ -26,8 +26,8 @@ const tempUserSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    // Auto-delete documents after 30 minutes if not verified
-    expires: 1800 // 30 minutes in seconds
+    // Auto-delete documents after 15 minutes if not verified
+    expires: 900 // 15 minutes in seconds
   }
 );
 

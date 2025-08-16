@@ -87,7 +87,7 @@ export const Signup = async (req, res) => {
   const tempUserExists = await TempUser.findOne({ email });
   if (tempUserExists) {
     return res.status(400).json({
-      message: "Email verification already sent. Please check your email.",
+      message: "Please try again after 15 minutes!",
     });
   }
 
