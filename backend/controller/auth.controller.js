@@ -182,12 +182,12 @@ export const resendVerificationCode = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists and is verified. Please login instead.",
-      });
-    }
+    // const existingUser = await User.findOne({ email });
+    // if (existingUser) {
+    //   return res.status(400).json({
+    //     message: "User already exists and is verified. Please login instead.",
+    //   });
+    // }
 
     const tempUser = await TempUser.findOne({ email });
     if (!tempUser) {
@@ -251,7 +251,7 @@ export const Login = async (req, res) => {
     }
   } catch (error) {
     console.error("Error logging in:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Login Failed!" });
   }
 };
 
@@ -343,6 +343,47 @@ export const forgotPassword = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Internal server error: " + error.message });
+  }
+};
+
+export const resendPasswordResetCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found with this email address.",
+      });
+    }
+
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    user.resetPasswordToken = resetCode;
+    user.resetPasswordExpiresAt = resetCodeExpiresAt;
+    user.resetCodeVerified = false;
+    user.resetCodeVerifiedAt = undefined;
+    await user.save();
+
+    await sendPasswordResetEmail(email, resetCode);
+
+    res.status(200).json({
+      success: true,
+      message: "New verification code sent to your email",
+      email: email,
+    });
+  } catch (error) {
+    console.error("Error resending password reset code:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to resend password reset code",
+      error: error.message,
+    });
   }
 };
 

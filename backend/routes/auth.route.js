@@ -8,6 +8,7 @@ import {
   forgotPassword,
   verifyResetCode,
   resetPassword,
+  resendPasswordResetCode,
   checkAuth,
   getProfile,
 } from "../controller/auth.controller.js";
@@ -29,5 +30,6 @@ router.post("/resend-verification-code", resendVerificationCode);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-reset-code", verifyResetCode);
 router.post("/reset-password", resetPassword);
+router.post("/resend-password-reset-code", resendPasswordResetCode);
 
 export default router;
