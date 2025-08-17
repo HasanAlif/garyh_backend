@@ -428,7 +428,7 @@ export const resetPassword = async (req, res) => {
   try {
     if (!newPassword || !confirmPassword) {
       return res.status(400).json({
-        message: "New password and confirm password are required",
+        message: "Password reset failed. Please try again!",
       });
     }
 

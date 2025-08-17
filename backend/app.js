@@ -9,6 +9,7 @@ import contactRoutes from "./routes/contact.route.js";
 import bookingRoutes from "./routes/booking.route.js";
 import globalRoutes from "./routes/global.route.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
+import messageRoutes from "./routes/message.route.js";
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/booking", bookingRoutes);
 app.use("/api/global", globalRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/message", messageRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
