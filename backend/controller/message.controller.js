@@ -38,6 +38,56 @@ export const getUsersForSidebar = async (req, res) => {
   }
 };
 
+export const searchUsersForSidebar = async (req, res) => {
+  try {
+    const { query } = req.params;
+    const loggedInUserId = req.user._id;
+
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Search query is required",
+      });
+    }
+
+    // Find all messages where the logged-in user is either sender or receiver
+    const messages = await Message.find({
+      $or: [{ senderId: loggedInUserId }, { receiverId: loggedInUserId }],
+    }).select("senderId receiverId");
+
+    // Extract unique user IDs that the logged-in user has messaged with
+    const userIds = new Set();
+    messages.forEach((message) => {
+      if (message.senderId.toString() !== loggedInUserId.toString()) {
+        userIds.add(message.senderId.toString());
+      }
+      if (message.receiverId.toString() !== loggedInUserId.toString()) {
+        userIds.add(message.receiverId.toString());
+      }
+    });
+
+    const userIdsArray = Array.from(userIds);
+
+    if (userIdsArray.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Search among users who have had conversations with the logged-in user
+    const searchResults = await User.find({
+      _id: { $in: userIdsArray },
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } },
+      ],
+    }).select("_id name email role image");
+
+    res.status(200).json({ success: true, data: searchResults });
+  } catch (error) {
+    console.error("Error searching users for sidebar:", error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
 export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;

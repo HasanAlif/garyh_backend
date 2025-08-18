@@ -3,11 +3,20 @@ import User from "../models/user.model.js";
 
 export const protectRoute = async (req, res, next) => {
   try {
-    const accessToken = req.cookies.accessToken;
+    let accessToken = req.cookies.accessToken;
+
     if (!accessToken) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Access token is missing" });
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        accessToken = authHeader.substring(7);
+      }
+    }
+
+    if (!accessToken) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Access token is missing" 
+      });
     }
 
     try {
