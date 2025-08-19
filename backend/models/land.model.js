@@ -7,7 +7,7 @@ const landSchema = new mongoose.Schema(
       required: [true, "Location is required"],
     },
     image: {
-      type: String,
+      type: [String],
       //   required: [true, "Please provide an image of your spot"],
     },
     spot: {

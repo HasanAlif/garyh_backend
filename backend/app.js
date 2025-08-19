@@ -26,6 +26,9 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
+// Serve static files for uploaded images (fallback)
+app.use("/uploads", express.static("backend/uploads"));
+
 app.get("/", (req, res) => {
   res.send("Welcome to the Garyh Backend API");
 });

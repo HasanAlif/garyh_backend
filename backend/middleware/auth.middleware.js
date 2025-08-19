@@ -50,7 +50,7 @@ export const protectRoute = async (req, res, next) => {
 };
 
 export const landOwnerRoute = (req, res, next) => {
-  if (req.user && req.user.role === "land owner") {
+  if (req.user && req.user.role === "landowner") {
     next();
   } else {
     return res

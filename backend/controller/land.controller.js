@@ -1,5 +1,50 @@
 import cloudinary from "../lib/cloudinary.js";
 import Land from "../models/land.model.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const uploadImages = async (base64Images) => {
+  const uploadedUrls = [];
+  const uploadsDir = path.join(__dirname, "../uploads/land_images");
+
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  for (const base64Image of base64Images) {
+    try {
+      const matches = base64Image.match(
+        /^data:image\/([a-zA-Z]+);base64,(.+)$/
+      );
+      if (!matches) {
+        console.error("Invalid base64 image format");
+        continue;
+      }
+
+      const imageFormat = matches[1];
+      const imageData = matches[2];
+      const buffer = Buffer.from(imageData, "base64");
+
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(2, 15);
+      const filename = `land_${timestamp}_${randomString}.${imageFormat}`;
+      const filepath = path.join(uploadsDir, filename);
+
+      fs.writeFileSync(filepath, buffer);
+
+      const imageUrl = `/uploads/land_images/${filename}`;
+      uploadedUrls.push(imageUrl);
+    } catch (error) {
+      console.error("Error in local image upload:", error);
+    }
+  }
+
+  return uploadedUrls;
+};
 
 export const createLand = async (req, res) => {
   try {
@@ -29,19 +74,62 @@ export const createLand = async (req, res) => {
       return Array.isArray(field) ? field : [field];
     };
 
-    let cloudinaryResponse = null;
+    let uploadedImages = [];
 
     if (image) {
-      cloudinaryResponse = await cloudinary.uploader.upload(image, {
-        folder: "land_images",
-      });
+      // Check if image is an array or single image
+      const images = Array.isArray(image) ? image : [image];
+      const validImages = images.filter((img) => img && img.trim() !== "");
+
+      if (validImages.length > 0) {
+        try {
+          // First priority: Try Cloudinary upload
+          console.log("Attempting Cloudinary upload...");
+
+          for (const img of validImages) {
+            try {
+              const cloudinaryResponse = await cloudinary.uploader.upload(img, {
+                folder: "land_images",
+                transformation: [
+                  { width: 800, height: 600, crop: "limit" },
+                  { quality: "auto" },
+                  { format: "auto" },
+                ],
+              });
+              uploadedImages.push(cloudinaryResponse.secure_url);
+              console.log("Cloudinary upload successful");
+            } catch (cloudinaryError) {
+              console.error(
+                "Cloudinary upload failed for image:",
+                cloudinaryError.message
+              );
+              throw cloudinaryError; // Throw to trigger fallback
+            }
+          }
+        } catch (cloudinaryError) {
+          console.error(
+            "Cloudinary upload failed, attempting local upload fallback..."
+          );
+
+          try {
+            // Fallback: Use local upload function
+            const localUploadUrls = await uploadImages(validImages);
+            uploadedImages = localUploadUrls;
+            console.log("Local upload successful as fallback");
+          } catch (localError) {
+            console.error(
+              "Both Cloudinary and local upload failed:",
+              localError
+            );
+            uploadedImages = [];
+          }
+        }
+      }
     }
 
     const land = await Land.create({
       location,
-      image: cloudinaryResponse?.secure_url
-        ? cloudinaryResponse.secure_url
-        : "",
+      image: uploadedImages,
       spot,
       amenities: parseArrayField(amenities),
       rv_type: parseArrayField(rv_type),
@@ -611,7 +699,7 @@ export const getLandOwnerFeatured = async (req, res) => {
   try {
     const ownerId = req.user._id;
 
-    const featuredLands = await Land.find({ owner: ownerId})
+    const featuredLands = await Land.find({ owner: ownerId })
       .sort({ createdAt: -1 })
       .limit(4);
 
