@@ -53,6 +53,10 @@ const userSchema = new mongoose.Schema(
     resetCodeVerifiedAt: Date,
     verificationToken: String,
     verificationTokenExpiresAt: Date,
+    stripeAccountId: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

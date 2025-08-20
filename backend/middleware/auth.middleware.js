@@ -7,15 +7,15 @@ export const protectRoute = async (req, res, next) => {
 
     if (!accessToken) {
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (authHeader && authHeader.startsWith("Bearer ")) {
         accessToken = authHeader.substring(7);
       }
     }
 
     if (!accessToken) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Access token is missing" 
+      return res.status(401).json({
+        success: false,
+        message: "Please Login First",
       });
     }
 
@@ -65,6 +65,9 @@ export const adminRoute = (req, res, next) => {
   } else {
     return res
       .status(403)
-      .json({ success: false, message: "Unauthorized access- Only Admin can access this route" });
+      .json({
+        success: false,
+        message: "Unauthorized access- Only Admin can access this route",
+      });
   }
 };

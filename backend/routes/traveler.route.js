@@ -22,7 +22,7 @@ router.get("/rating/:id", getLandRatings);
 // router.delete("/rating/:id", protectRoute, removeRating);
 
 router.get("/available-lands", protectRoute, getAvailableLand);
-router.get("/all-lands", protectRoute, getAllLands);
+router.get("/all-lands", getAllLands);
 
 router.post("/save/:landId", protectRoute, saveLand);
 router.delete("/unsave/:landId", protectRoute, unsaveLand);

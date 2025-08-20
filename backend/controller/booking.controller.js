@@ -2,6 +2,8 @@ import { sender, transport } from "../mailtrap/mailtrap.config.js";
 import Booking from "../models/booking.model.js";
 import crypto from "crypto";
 import { BOOKING_VERIFICATION_CODE } from "../mailtrap/emailTemplates.js";
+import Land from "../models/land.model.js";
+import { stripe, PLATFORM_FEE_PERCENT } from "../lib/stripe.js";
 
 export const bookingLand = async (req, res) => {
   try {
@@ -92,6 +94,20 @@ export const bookingLand = async (req, res) => {
 
     const verificationCode = crypto.randomInt(100000, 999999).toString();
 
+    const land = await Land.findById(id);
+    if (!land) {
+      return res.status(404).json({
+        error: "Land not found",
+      });
+    }
+
+    // Calculate number of nights and total amount (price per night * nights)
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const diffMs = checkOutDate.getTime() - checkInDate.getTime();
+    let nights = Math.ceil(diffMs / MS_PER_DAY);
+    if (nights < 1) nights = 1; // safety: at least 1 night
+    const totalAmount = Number((land.price * nights).toFixed(2));
+
     const booking = await Booking.create({
       LandId: id,
       userId,
@@ -105,6 +121,7 @@ export const bookingLand = async (req, res) => {
       checkOut: checkOutDate,
       verificationCode,
       bookingStatus: "pending",
+      totalAmount,
     });
 
     // Send verification email
@@ -128,6 +145,8 @@ export const bookingLand = async (req, res) => {
         checkOut: booking.checkOut,
         status: booking.bookingStatus,
         isVerified: booking.isVerified,
+        nights,
+        totalAmount,
       },
     });
   } catch (error) {
@@ -211,18 +230,105 @@ export const verifyBooking = async (req, res) => {
 
     booking.isVerified = true;
     booking.verificationCode = null;
-    booking.bookingStatus = "completed";
+    booking.bookingStatus = "confirmed";
+
+    const land = await Land.findById(booking.LandId).populate("owner");
+    if (!land) {
+      await booking.save();
+      return res
+        .status(404)
+        .json({ message: "Land not found for this booking" });
+    }
+
+    const price = booking.totalAmount ?? land.price;
+    const currency = (booking.currency || "usd").toLowerCase();
+    const amountInCents = Math.round(Number(price) * 100);
+    const applicationFeeAmount = Math.round(
+      (amountInCents * PLATFORM_FEE_PERCENT) / 100
+    );
+    const destination = land.owner?.stripeAccountId || null;
+    if (!destination) {
+      await booking.save();
+      return res.status(400).json({
+        message:
+          "Landowner payout account not configured. Please set stripeAccountId first.",
+      });
+    }
+
+    // Validate connected account can receive transfers
+    try {
+      const account = await stripe.accounts.retrieve(destination);
+      const transfersActive = account?.capabilities?.transfers === "active";
+      if (!transfersActive) {
+        await booking.save();
+        return res.status(400).json({
+          message:
+            "Landowner payout account is not eligible for transfers yet. Please complete Stripe onboarding.",
+        });
+      }
+    } catch (e) {
+      await booking.save();
+      return res.status(400).json({
+        message: "Unable to validate landowner payout account",
+        error: e.message,
+      });
+    }
+
+    const lineItemName = `Booking for ${land.spot || land.location}`;
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+    const sessionParams = {
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency,
+            product_data: {
+              name: lineItemName,
+              metadata: { landId: String(land._id) },
+            },
+            unit_amount: amountInCents,
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        bookingId: String(booking._id),
+        userId: String(booking.userId),
+        landId: String(booking.LandId),
+      },
+      success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${
+        process.env.FRONTEND_URL || "http://localhost:5173"
+      }/payment-cancelled`,
+    };
+
+    sessionParams.payment_intent_data = {
+      application_fee_amount: applicationFeeAmount,
+      transfer_data: { destination },
+    };
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    booking.totalAmount = amountInCents / 100;
+    booking.platformFeeAmount = applicationFeeAmount / 100;
+    booking.ownerAmount = (amountInCents - applicationFeeAmount) / 100;
+    booking.currency = currency;
+    booking.paymentStatus = "processing";
+    booking.stripeSessionId = session.id;
     await booking.save();
 
     res.status(200).json({
       success: true,
-      message: "Booking verified and completed successfully!",
+      message:
+        "Booking verified. Redirect to Stripe Checkout to complete payment.",
+      redirectUrl: session.url,
+      sessionId: session.id,
       bookingId: booking._id,
       booking: {
         status: booking.bookingStatus,
         isVerified: booking.isVerified,
-        checkIn: booking.checkIn,
-        checkOut: booking.checkOut,
+        isPaid: booking.isPaid,
       },
     });
   } catch (error) {

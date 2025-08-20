@@ -9,17 +9,17 @@ export const AllBookingLand = async (req, res) => {
     const totalLandsCount = totalLands.length;
 
     const allBookings = await Booking.find({
-      LandId: { $in: totalLands.map(land => land._id) },
+      LandId: { $in: totalLands.map((land) => land._id) },
       isVerified: true,
-      bookingStatus: "completed"
+      bookingStatus: "completed",
     })
       .populate({
         path: "LandId",
-        select: "spot price"
+        select: "spot price",
       })
       .populate({
-        path: "userId", 
-        select: "name"
+        path: "userId",
+        select: "name",
       })
       .sort({ createdAt: -1 });
 
@@ -29,28 +29,28 @@ export const AllBookingLand = async (req, res) => {
       const checkOut = new Date(booking.checkOut);
       const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
       const landPrice = booking.LandId?.price || 0;
-      return total + (landPrice * nights);
+      return total + landPrice * nights;
     }, 0);
 
     // Format booking details with traveler name, spot, and booking date range
-    const bookingDetails = allBookings.map(booking => {
+    const bookingDetails = allBookings.map((booking) => {
       const checkIn = new Date(booking.checkIn);
       const checkOut = new Date(booking.checkOut);
-      const checkInFormatted = checkIn.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      const checkInFormatted = checkIn.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
-      const checkOutFormatted = checkOut.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      const checkOutFormatted = checkOut.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
 
       return {
         travelerName: booking.userId?.name || "Unknown",
         spotName: booking.LandId?.spot || "Unknown",
-        bookingDateRange: `${checkInFormatted} - ${checkOutFormatted}`
+        bookingDateRange: `${checkInFormatted} - ${checkOutFormatted}`,
       };
     });
 
@@ -59,19 +59,17 @@ export const AllBookingLand = async (req, res) => {
       totalLands: totalLandsCount,
       totalBookings: allBookings.length,
       totalEarnings: totalEarnings,
-      bookingDetails: bookingDetails
+      bookingDetails: bookingDetails,
     });
-
   } catch (error) {
     console.error("Error fetching landowner bookings:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Internal server error", 
-      error: error.message 
+      message: "Internal server error",
+      error: error.message,
     });
   }
 };
-
 
 export const allRatingReviews = async (req, res) => {
   try {
@@ -80,22 +78,22 @@ export const allRatingReviews = async (req, res) => {
     const lands = await Land.find({ owner: landownerId })
       .populate({
         path: "ratingsAndReviews.user",
-        select: "name"
+        select: "name",
       })
       .select("spot ratingsAndReviews");
 
     if (!lands.length) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "No lands found for this landowner" 
+      return res.status(404).json({
+        success: false,
+        message: "No lands found for this landowner",
       });
     }
 
     const allReviews = [];
-    
-    lands.forEach(land => {
+
+    lands.forEach((land) => {
       if (land.ratingsAndReviews && land.ratingsAndReviews.length > 0) {
-        land.ratingsAndReviews.forEach(reviewItem => {
+        land.ratingsAndReviews.forEach((reviewItem) => {
           // Only include reviews that have actual review text
           if (reviewItem.review && reviewItem.review.trim() !== "") {
             allReviews.push({
@@ -103,11 +101,14 @@ export const allRatingReviews = async (req, res) => {
               spotName: land.spot || "Unknown",
               rating: reviewItem.rating,
               review: reviewItem.review,
-              reviewDate: new Date(reviewItem.createdAt).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-              })
+              reviewDate: new Date(reviewItem.createdAt).toLocaleDateString(
+                "en-US",
+                {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                }
+              ),
             });
           }
         });
@@ -120,15 +121,14 @@ export const allRatingReviews = async (req, res) => {
     res.status(200).json({
       success: true,
       totalReviews: allReviews.length,
-      reviews: allReviews
+      reviews: allReviews,
     });
-
   } catch (error) {
     console.error("Error fetching landowner reviews:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: error.message
+      error: error.message,
     });
   }
 };
