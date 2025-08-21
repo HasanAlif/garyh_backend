@@ -57,6 +57,23 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Bank account fields (masked for security)
+    bank_name: {
+      type: String,
+      default: null,
+    },
+    bank_holder_name: {
+      type: String,
+      default: null,
+    },
+    bank_account_number: {
+      type: String,
+      default: null,
+    },
+    routing_number: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

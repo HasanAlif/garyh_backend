@@ -7,6 +7,7 @@ import {
   updateLand,
   filterLands,
   searchByLocation,
+  searchAndFilterLands,
   getLandOwnerFeatured
 } from "../controller/land.controller.js";
 
@@ -21,6 +22,7 @@ router.delete("/deleteland/:id", protectRoute, landOwnerRoute, deleteLand);
 // Filter lands using query parameters
 router.get("/filter", protectRoute, filterLands);
 router.get("/search", protectRoute, searchByLocation);
+router.get("/search-filter", searchAndFilterLands);
 router.get("/feature-lands", protectRoute, landOwnerRoute, getLandOwnerFeatured);
 
 export default router;

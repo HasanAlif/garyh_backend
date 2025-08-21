@@ -50,7 +50,7 @@ app.use("/api/booking", bookingRoutes);
 app.use("/api/global", globalRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/message", messageRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/payment", paymentRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });

@@ -674,6 +674,113 @@ export const searchByLocation = async (req, res) => {
   }
 };
 
+export const searchAndFilterLands = async (req, res) => {
+  try {
+    const {
+      location,
+      minPrice,
+      maxPrice,
+      minRating,
+      amenities,
+      site_types,
+      rv_type,
+      site_length,
+      max_slide,
+    } = req.query;
+
+    console.log("Search and filter parameters received:", req.query);
+
+    const query = { isAvailable: true };
+
+    if (location && location.trim() !== "") {
+      query.location = { $regex: location.trim(), $options: "i" };
+    }
+
+    if (minPrice && minPrice.trim() !== "") {
+      query.price = { ...query.price, $gte: Number(minPrice) };
+    }
+    if (maxPrice && maxPrice.trim() !== "") {
+      query.price = { ...query.price, $lte: Number(maxPrice) };
+    }
+
+    const parseArrayParam = (param) => {
+      if (!param || param.trim() === "") return [];
+      return param
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item !== "");
+    };
+
+    const amenitiesArray = parseArrayParam(amenities);
+    if (amenitiesArray.length > 0) {
+      query.amenities = { $all: amenitiesArray };
+    }
+
+    const siteTypesArray = parseArrayParam(site_types);
+    if (siteTypesArray.length > 0) {
+      query.site_types = { $in: siteTypesArray };
+    }
+
+    const rvTypesArray = parseArrayParam(rv_type);
+    if (rvTypesArray.length > 0) {
+      query.rv_type = { $in: rvTypesArray };
+    }
+
+    const siteLengthArray = parseArrayParam(site_length);
+    if (siteLengthArray.length > 0) {
+      query.site_length = { $in: siteLengthArray };
+    }
+
+    const maxSlideArray = parseArrayParam(max_slide);
+    if (maxSlideArray.length > 0) {
+      query.max_slide = { $in: maxSlideArray };
+    }
+
+    console.log(
+      "Built search and filter query:",
+      JSON.stringify(query, null, 2)
+    );
+
+    let results = await Land.find(query)
+      .populate("owner", "name email")
+      .populate("ratingsAndReviews.user", "name")
+      .sort({ createdAt: -1 });
+
+    if (minRating && minRating.trim() !== "") {
+      const minRatingNum = Number(minRating);
+      results = results.filter((land) => {
+        return land.averageRating >= minRatingNum;
+      });
+    }
+
+    console.log(`Found ${results.length} lands matching search and filters`);
+
+    res.status(200).json({
+      success: true,
+      count: results.length,
+      searchLocation: location || null,
+      filters: {
+        minPrice: minPrice || null,
+        maxPrice: maxPrice || null,
+        minRating: minRating || null,
+        amenities: amenitiesArray,
+        site_types: siteTypesArray,
+        rv_type: rvTypesArray,
+        site_length: siteLengthArray,
+        max_slide: maxSlideArray,
+      },
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error searching and filtering lands:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
 export const getFeaturedLand = async (req, res) => {
   try {
     const featuredLands = await Land.find({ isAvailable: true })

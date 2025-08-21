@@ -3,6 +3,7 @@ import Booking from "../models/booking.model.js";
 import Land from "../models/land.model.js";
 import User from "../models/user.model.js";
 import Transaction from "../models/transaction.model.js";
+import StripeAccount from "../models/stripeAccount.model.js";
 
 // Create Checkout Session - traveler pays, platform takes 3%, rest to owner (if connected)
 export const createCheckoutSession = async (req, res) => {
@@ -93,21 +94,21 @@ export const createCheckoutSession = async (req, res) => {
       }/payment-cancelled`,
     };
 
-    // Use Connect destination charges with application fee
-    sessionParams.payment_intent_data = {
-      application_fee_amount: applicationFeeAmount,
-      transfer_data: { destination: ownerStripeAccount },
-    };
+    // // Use Connect destination charges with application fee
+    // sessionParams.payment_intent_data = {
+    //   application_fee_amount: applicationFeeAmount,
+    //   transfer_data: { destination: ownerStripeAccount },
+    // };
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    // const session = await stripe.checkout.sessions.create(sessionParams);
 
-    booking.totalAmount = amountInCents / 100;
-    booking.platformFeeAmount = applicationFeeAmount / 100;
-    booking.ownerAmount = (amountInCents - applicationFeeAmount) / 100;
-    booking.currency = currency;
-    booking.paymentStatus = "processing";
-    booking.stripeSessionId = session.id;
-    await booking.save();
+    // booking.totalAmount = amountInCents / 100;
+    // booking.platformFeeAmount = applicationFeeAmount / 100;
+    // booking.ownerAmount = (amountInCents - applicationFeeAmount) / 100;
+    // booking.currency = currency;
+    // booking.paymentStatus = "processing";
+    // booking.stripeSessionId = session.id;
+    // await booking.save();
 
     return res.status(200).json({ url: session.url, sessionId: session.id });
   } catch (err) {
@@ -167,6 +168,11 @@ export const stripeSuccessAndUpdate = async (req, res) => {
 
     // Create transaction record
     try {
+
+      
+
+
+      
       const land = await Land.findById(booking.LandId).select("owner");
       const receiveUser = land?.owner;
       await Transaction.create({
@@ -285,11 +291,6 @@ export const getSessionStatus = async (req, res) => {
   }
 };
 
-// Stripe Connect: create or retrieve connected account for land owner
-// (Simplified) We no longer manage onboarding or login links here; landowners provide their
-// Stripe Connect account ID via /connect/set, and we route funds during checkout.
-
-// Allow a landowner to set their Stripe Connect account id manually (e.g., acct_123)
 export const setOwnerStripeAccountId = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -321,5 +322,356 @@ export const setOwnerStripeAccountId = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Failed to set payout account", error: err.message });
+  }
+};
+
+export const createAndUpdateConnectedAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const existingUser = req.user;
+
+    if (existingUser.role !== "landowner") {
+      return res.status(403).json({
+        message:
+          "Only landowners can add bank account information to receive payments from travelers.",
+      });
+    }
+
+    let accountId = existingUser.stripeAccountId;
+
+    const baseUrl = process.env.BACKEND_URL || "http://localhost:5000";
+    let accountLink;
+
+    if (!accountId) {
+      // Create new Stripe Express account
+      const account = await stripe.accounts.create({
+        type: "express",
+        country: "US",
+        email: existingUser?.email,
+        capabilities: {
+          transfers: { requested: true },
+          card_payments: { requested: true },
+        },
+        business_type: "individual", // Simplified for individual landowners
+        settings: {
+          payouts: {
+            schedule: {
+              interval: "daily", // Enable daily payouts
+            },
+          },
+        },
+      });
+
+      // Save the Stripe account ID immediately to the user
+      existingUser.stripeAccountId = account.id;
+      await existingUser.save();
+      accountId = account.id;
+
+      accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${baseUrl}/api/payment/stripe_bank/create`,
+        return_url: `${baseUrl}/api/payment/stripe_bank/success?accountId=${accountId}&userId=${userId}`,
+        type: "account_onboarding",
+      });
+    } else {
+      // Update existing account
+      accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${baseUrl}/api/payment/stripe_bank/create`,
+        return_url: `${baseUrl}/api/payment/stripe_bank/success/update?accountId=${accountId}&userId=${userId}`,
+        type: "account_onboarding",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      url: accountLink.url,
+      message: accountId
+        ? "Account update link created"
+        : "New account onboarding link created",
+    });
+  } catch (error) {
+    console.error("createAndUpdateConnectedAccount error:", error);
+    return res
+      .status(error?.statusCode || 500)
+      .json({ message: error?.message || "Internal Server Error" });
+  }
+};
+
+export const saveStripeAccount = async (req, res) => {
+  try {
+    const { accountId, userId } = req.query;
+
+    if (!accountId || !userId) {
+      return res
+        .status(400)
+        .json({ message: "Missing accountId or userId parameter" });
+    }
+
+    // Find user by the userId passed in the redirect
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role !== "landowner") {
+      return res
+        .status(403)
+        .json({ message: "Only landowners can complete bank account setup" });
+    }
+
+    const stripeAccount = await stripe.accounts.retrieve(accountId);
+
+    if (!stripeAccount.details_submitted) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Onboarding not completed. Please complete all required information in Stripe.",
+        });
+    }
+
+    const individual = stripeAccount?.individual;
+    const bank_info = stripeAccount.external_accounts?.data[0] || {};
+    const business_name =
+      `${individual?.first_name || ""} ${individual?.last_name || ""}`.trim() ||
+      user.name;
+
+    const stripeAccountData = {
+      name: user?.name || "Unknown",
+      email: user?.email,
+      user: user._id,
+      userType: user.role,
+      stripeAccountId: accountId,
+      externalAccountId: bank_info?.id || null,
+      bank_info: {
+        bank_name: bank_info?.bank_name || null,
+        account_holder_name: bank_info?.account_holder_name || user?.name,
+        account_number: bank_info?.last4 ? "****" + bank_info.last4 : null,
+        routing_number: bank_info?.routing_number || null,
+        country: bank_info?.country || "US",
+        currency: bank_info?.currency || "usd",
+      },
+      business_profile: {
+        business_name: business_name,
+        website: stripeAccount?.business_profile?.url || "www.example.com",
+      },
+    };
+
+    const savedStripeAccount = await StripeAccount.findOneAndUpdate(
+      { user: user._id },
+      stripeAccountData,
+      { new: true, upsert: true }
+    );
+
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        stripeAccountId: accountId,
+        bank_name: stripeAccountData.bank_info.bank_name,
+        bank_holder_name: stripeAccountData.bank_info.account_holder_name,
+        bank_account_number: stripeAccountData.bank_info.account_number,
+        routing_number: stripeAccountData.bank_info.routing_number,
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Bank account saved successfully",
+      data: savedStripeAccount,
+    });
+  } catch (err) {
+    console.error("saveStripeAccount error:", err);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
+  }
+};
+
+export const updateStripeAccount = async (req, res) => {
+  try {
+    const { accountId, userId } = req.query;
+
+    if (!accountId || !userId) {
+      return res
+        .status(400)
+        .json({ message: "Missing accountId or userId parameter" });
+    }
+
+    // Find user by the userId passed in the redirect
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role !== "landowner") {
+      return res
+        .status(403)
+        .json({
+          message: "Only landowners can update bank account information",
+        });
+    }
+
+    const stripeAccount = await stripe.accounts.retrieve(accountId);
+
+    if (!stripeAccount?.individual && !stripeAccount?.company) {
+      return res
+        .status(400)
+        .json({ message: "Stripe account not found or incomplete." });
+    }
+
+    // Extract updated information
+    const individual = stripeAccount?.individual;
+    const company = stripeAccount?.company;
+    const bank_info = stripeAccount.external_accounts?.data[0] || {};
+    const business_name =
+      company?.name ||
+      `${individual?.first_name || ""} ${individual?.last_name || ""}`.trim() ||
+      user.name;
+
+    // Create or update the StripeAccount record (upsert)
+    const updatedStripeAccount = await StripeAccount.findOneAndUpdate(
+      { user: user._id, stripeAccountId: accountId },
+      {
+        user: user._id,
+        stripeAccountId: accountId,
+        name: user?.name || "Unknown",
+        bank_info: {
+          bank_name: bank_info?.bank_name || null,
+          account_holder_name: bank_info?.account_holder_name || user?.name,
+          account_number: bank_info?.last4 ? "****" + bank_info.last4 : null,
+          routing_number: bank_info?.routing_number || null,
+          country: bank_info?.country || "US",
+          currency: bank_info?.currency || "usd",
+        },
+        business_profile: {
+          business_name: business_name,
+          website: stripeAccount?.business_profile?.url || "www.example.com",
+        },
+        externalAccountId: bank_info?.id || null,
+      },
+      {
+        new: true,
+        upsert: true, // Create if doesn't exist
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        bank_name: bank_info?.bank_name || null,
+        bank_holder_name: bank_info?.account_holder_name || user?.name,
+        bank_account_number: bank_info?.last4 ? "****" + bank_info.last4 : null,
+        routing_number: bank_info?.routing_number || null,
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Bank account updated successfully",
+      data: updatedStripeAccount,
+    });
+  } catch (err) {
+    console.error("updateStripeAccount error:", err);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
+  }
+};
+
+// Get user's bank info with verification status
+export const getUserBankInfo = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const bankAccount = await StripeAccount.findOne({ user: userId });
+
+    if (!bankAccount) {
+      return res.status(404).json({
+        message: "No bank account found",
+        verification_message:
+          "No bank account linked. Please set up your bank account.",
+        success_verification: false,
+      });
+    }
+
+    let verification_message = "Bank account verified and ready for transfers.";
+    let success_verification = true;
+
+    try {
+      const stripeAccount = await stripe.accounts.retrieve(
+        bankAccount?.stripeAccountId
+      );
+
+      if (!stripeAccount) {
+        success_verification = false;
+        verification_message = "Stripe account not found or invalid.";
+      } else {
+        const externalAccount = stripeAccount?.external_accounts?.data?.find(
+          (account) => account.id === bankAccount.externalAccountId
+        );
+
+        if (!externalAccount) {
+          success_verification = false;
+          verification_message =
+            "Bank account not found or not linked to Stripe.";
+        } else if (
+          !stripeAccount.capabilities?.transfers ||
+          stripeAccount.capabilities.transfers !== "active"
+        ) {
+          if (
+            stripeAccount.requirements?.disabled_reason ===
+            "requirements.pending_verification"
+          ) {
+            success_verification = false;
+            verification_message =
+              "Bank account verification is in progress. Please wait for the verification process to complete.";
+          } else {
+            success_verification = false;
+            verification_message =
+              "Bank account is not eligible for transfers. Please complete bank account verification with valid information.";
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Stripe account retrieval error:", error);
+      verification_message =
+        "Your Account Not Found, Please update your bank account information!";
+      success_verification = false;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Bank info retrieved successfully.",
+      data: {
+        bankAccount,
+        verification_message,
+        success_verification,
+      },
+    });
+  } catch (err) {
+    console.error("getUserBankInfo error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to get bank info", error: err.message });
+  }
+};
+
+export const getMyTransactions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const tx = await Transaction.find({
+      $or: [{ payUser: userId }, { receiveUser: userId }],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    return res.status(200).json({ count: tx.length, transactions: tx });
+  } catch (err) {
+    console.error("getMyTransactions error", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch transactions", error: err.message });
   }
 };
