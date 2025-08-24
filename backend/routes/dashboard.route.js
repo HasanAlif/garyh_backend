@@ -13,7 +13,7 @@ import {
 const router = express.Router();
 
 router.get("/my-bookings", protectRoute, getUserBookings);
-router.post("/change-password", protectRoute, updatePassword);
+router.put("/change-password", protectRoute, updatePassword);
 router.patch("/update-profile", protectRoute, updateProfile);
 
 router.get("/overview", protectRoute, landOwnerRoute, AllBookingLand);

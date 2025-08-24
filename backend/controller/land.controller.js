@@ -1,4 +1,4 @@
-import cloudinary from "../lib/cloudinary.js";
+﻿import cloudinary from "../lib/cloudinary.js";
 import Land from "../models/land.model.js";
 import fs from "fs";
 import path from "path";
@@ -578,9 +578,9 @@ export const filterLands = async (req, res) => {
     const filters = {
       minPrice: minPrice || null,
       maxPrice: maxPrice || null,
-      minRating: minRating || null
+      minRating: minRating || null,
     };
-    
+
     if (filters.maxPrice !== null) {
       queryParams.max_price = filters.maxPrice;
     }
@@ -725,9 +725,9 @@ export const searchAndFilterLands = async (req, res) => {
     const filters = {
       minPrice: minPrice || null,
       maxPrice: maxPrice || null,
-      minRating: minRating || null
+      minRating: minRating || null,
     };
-    
+
     if (filters.maxPrice !== null) {
       queryParams.max_price = filters.maxPrice;
     }
