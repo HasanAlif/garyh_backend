@@ -8,6 +8,8 @@ import {
 import {
   AllBookingLand,
   allRatingReviews,
+  getEarnings,
+  getTransactions
 } from "../controller/landowner dashboard.controller.js";
 
 const router = express.Router();
@@ -18,5 +20,8 @@ router.patch("/update-profile", protectRoute, updateProfile);
 
 router.get("/overview", protectRoute, landOwnerRoute, AllBookingLand);
 router.get("/all-reviews", protectRoute, landOwnerRoute, allRatingReviews);
+
+router.get("/earnings", protectRoute, landOwnerRoute, getEarnings);
+router.get("/transactions", protectRoute, landOwnerRoute, getTransactions);
 
 export default router;

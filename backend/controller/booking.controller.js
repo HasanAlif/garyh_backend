@@ -377,7 +377,7 @@ export const getUserBookings = async (req, res) => {
     const userId = req.user._id;
 
     const bookings = await Booking.find({ userId })
-      .populate("LandId", "name location images pricePerNight")
+      .populate("LandId", "name location spot images pricePerNight")
       .sort({ createdAt: -1 });
 
     const totalBookings = bookings.length;
@@ -400,6 +400,19 @@ export const getUserBookings = async (req, res) => {
         land: booking.LandId,
         checkIn: booking.checkIn,
         checkOut: booking.checkOut,
+        bookingDate: booking.createdAt.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        spot: booking.LandId?.spot || booking.LandId?.name || "Unknown Spot",
+        image:
+          booking.LandId?.images && booking.LandId.images.length > 0
+            ? booking.LandId.images[0]
+            : null,
+        price: parseFloat((booking.totalAmount || 0).toFixed(2)),
         status: booking.bookingStatus,
         isVerified: booking.isVerified,
         createdAt: booking.createdAt,

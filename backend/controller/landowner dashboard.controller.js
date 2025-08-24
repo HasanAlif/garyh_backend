@@ -1,5 +1,6 @@
 import Booking from "../models/booking.model.js";
 import Land from "../models/land.model.js";
+import Transaction from "../models/transaction.model.js";
 
 export const AllBookingLand = async (req, res) => {
   try {
@@ -129,6 +130,115 @@ export const allRatingReviews = async (req, res) => {
       success: false,
       message: "Internal server error",
       error: error.message,
+    });
+  }
+};
+
+export const getEarnings = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const allTransactions = await Transaction.find({
+      receiveUser: userId,
+      receiveUserRole: "landowner",
+    });
+
+    let totalEarnings = 0;
+
+    allTransactions.forEach((transaction) => {
+      if (transaction.ownerAmount) {
+        totalEarnings += transaction.ownerAmount;
+      }
+    });
+
+    const thisMonthTransactions = await Transaction.find({
+      receiveUser: userId,
+      paymentStatus: "Completed",
+      receiveUserRole: "landowner",
+      createdAt: {
+        $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      },
+    });
+
+    let thisMonthEarnings = 0;
+    thisMonthTransactions.forEach((transaction) => {
+      if (transaction.ownerAmount) {
+        thisMonthEarnings += transaction.ownerAmount;
+      }
+    });
+
+    const ownedLands = await Land.find({ owner: userId }).select("_id");
+    const landIds = ownedLands.map((land) => land._id);
+
+    const totalBookings = await Booking.countDocuments({
+      LandId: { $in: landIds },
+      bookingStatus: "completed",
+    });
+
+    res.json({
+      success: true,
+      totalEarnings: parseFloat(totalEarnings.toFixed(2)),
+      thisMonthEarnings: parseFloat(thisMonthEarnings.toFixed(2)),
+      totalBookings,
+    });
+  } catch (err) {
+    console.error("Error fetching earnings:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+};
+
+export const getTransactions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Get transactions where this landowner is the receiver
+    const transactions = await Transaction.find({
+      receiveUser: userId,
+      receiveUserRole: "landowner",
+    })
+      .populate("payUser", "firstName lastName email") // populate the traveler who paid
+      .populate("bookingId", "landId") // get booking details
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .exec();
+
+    const total = await Transaction.countDocuments({
+      receiveUser: userId,
+      receiveUserRole: "landowner",
+    });
+
+    const formattedTransactions = transactions.map((transaction) => ({
+      transactionId: transaction._id,
+      date: transaction.createdAt.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      amount: parseFloat((transaction.ownerAmount || 0).toFixed(2)),
+      status: transaction.paymentStatus,
+    }));
+
+    res.json({
+      success: true,
+      transactions: formattedTransactions,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    console.error("Error fetching transactions:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message,
     });
   }
 };
