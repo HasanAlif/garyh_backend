@@ -98,6 +98,12 @@ const bookingSchema = new mongoose.Schema(
     stripePaymentIntentId: {
       type: String,
     },
+    stripeTransferId: {
+      type: String,
+    },
+    transferError: {
+      type: String,
+    },
     createdAt: {
       type: Date,
       default: Date.now,

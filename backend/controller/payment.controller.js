@@ -37,7 +37,14 @@ export const createCheckoutSession = async (req, res) => {
     );
 
     // Require a landowner Stripe Connect account to route funds (97% to owner, 3% platform)
-    const ownerStripeAccount = land.owner?.stripeAccountId || null;
+    const ownerStripeAccount = land.owner?./* The above code is a comment in JavaScript. It is not
+    performing any specific action in the code, but it is
+    used to provide information or explanations about the
+    code for developers who may be reading it. The text
+    "stripeAccountId" is not a valid JavaScript syntax, so it
+    is likely just a placeholder or example text within the
+    comment. */
+    stripeAccountId || null;
     if (!ownerStripeAccount) {
       return res.status(400).json({
         message:
@@ -87,6 +94,9 @@ export const createCheckoutSession = async (req, res) => {
         bookingId: bookingIdStr,
         userId: userIdStr,
         landId: landIdStr,
+        ownerStripeAccountId: ownerStripeAccount,
+        applicationFeeAmount: applicationFeeAmount,
+        ownerAmount: amountInCents - applicationFeeAmount
       },
       success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${
@@ -94,23 +104,22 @@ export const createCheckoutSession = async (req, res) => {
       }/payment-cancelled`,
     };
 
-    // // Use Connect destination charges with application fee
-    // sessionParams.payment_intent_data = {
-    //   application_fee_amount: applicationFeeAmount,
-    //   transfer_data: { destination: ownerStripeAccount },
-    // };
+    // Collect payment directly to platform account
+    // We'll handle the transfer to the landowner after successful payment
+    // This ensures platform fees are in available balance, not just incoming
 
-    // const session = await stripe.checkout.sessions.create(sessionParams);
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
-    // booking.totalAmount = amountInCents / 100;
-    // booking.platformFeeAmount = applicationFeeAmount / 100;
-    // booking.ownerAmount = (amountInCents - applicationFeeAmount) / 100;
-    // booking.currency = currency;
-    // booking.paymentStatus = "processing";
-    // booking.stripeSessionId = session.id;
-    // await booking.save();
+    // Store only minimal data during checkout - save the rest after successful payment
+    booking.paymentStatus = "processing";
+    booking.stripeSessionId = session.id;
+    await booking.save();
 
-    return res.status(200).json({ url: session.url, sessionId: session.id });
+    // Store payment metadata for use after successful payment
+    return res.status(200).json({ 
+      url: session.url, 
+      sessionId: session.id 
+    });
   } catch (err) {
     console.error("createCheckoutSession error", err);
     return res.status(500).json({
@@ -159,20 +168,69 @@ export const stripeSuccessAndUpdate = async (req, res) => {
       return res.status(200).json({ success: true, bookingId: booking._id });
     }
 
+    // Get the full payment details from Stripe
+    const paymentIntent = session.payment_intent ? 
+      await stripe.paymentIntents.retrieve(session.payment_intent) : 
+      null;
+    
+    // Calculate payment amounts
+    const land = await Land.findById(booking.LandId).populate("owner");
+    if (!land) {
+      return res.status(404).json({ message: "Land not found" });
+    }
+
+    const price = session.amount_total / 100; // Amount in currency units from the successful payment
+    const currency = session.currency || "usd";
+    const amountInCents = session.amount_total;
+    const applicationFeeAmount = Math.round((amountInCents * PLATFORM_FEE_PERCENT) / 100);
+    const ownerAmount = amountInCents - applicationFeeAmount;
+    const ownerStripeAccountId = land.owner?.stripeAccountId || session.metadata?.ownerStripeAccountId;
+
+    // Update booking with payment details
+    booking.totalAmount = price;
+    booking.platformFeeAmount = applicationFeeAmount / 100;
+    booking.ownerAmount = ownerAmount / 100;
+    booking.currency = currency;
     booking.isPaid = true;
     booking.paymentStatus = "paid";
     booking.paymentId = session.payment_intent || session.id;
     booking.stripePaymentIntentId = session.payment_intent || null;
     booking.bookingStatus = "completed";
+    
+    // After successful payment, transfer the owner's portion to their Stripe account
+    let transferId = null;
+    let transferError = null;
+    
+    try {
+      if (ownerStripeAccountId) {
+        // Create a transfer to the connected account
+        const transfer = await stripe.transfers.create({
+          amount: ownerAmount, // Transfer the owner's portion (97%)
+          currency: currency,
+          destination: ownerStripeAccountId,
+          transfer_group: `booking_${booking._id}`,
+          metadata: {
+            bookingId: String(booking._id),
+            userId: String(booking.userId),
+            landId: String(booking.LandId)
+          },
+          description: `Transfer for booking ${booking._id}`
+        });
+        
+        transferId = transfer.id;
+        booking.stripeTransferId = transfer.id;
+        console.log(`Transfer completed: ${transfer.id}`);
+      }
+    } catch (e) {
+      console.error("Transfer error:", e);
+      transferError = e.message;
+      booking.transferError = e.message;
+    }
+    
     await booking.save();
 
     // Create transaction record
     try {
-
-      
-
-
-      
       const land = await Land.findById(booking.LandId).select("owner");
       const receiveUser = land?.owner;
       await Transaction.create({
@@ -188,7 +246,9 @@ export const stripeSuccessAndUpdate = async (req, res) => {
         paymentMethod: "Stripe",
         transactionId: booking.stripePaymentIntentId || booking.paymentId,
         stripeSessionId: booking.stripeSessionId,
-        paymentStatus: "Completed",
+        transferId: transferId,
+        transferError: transferError,
+        paymentStatus: transferError ? "platform_paid_only" : "Completed",
       });
     } catch (e) {
       console.error("Transaction create error", e);
@@ -231,12 +291,84 @@ export const stripeWebhook = async (req, res) => {
         if (bookingId) {
           const booking = await Booking.findById(bookingId);
           if (booking) {
-            booking.isPaid = true;
-            booking.paymentStatus = "paid";
-            booking.paymentId = session.payment_intent || session.id;
-            booking.stripePaymentIntentId = session.payment_intent || null;
-            booking.bookingStatus = "completed";
-            await booking.save();
+            // Calculate payment amounts if not already calculated
+            if (!booking.isPaid) {
+              const land = await Land.findById(booking.LandId).populate("owner");
+              if (land) {
+                const price = session.amount_total / 100;
+                const currency = session.currency || "usd";
+                const amountInCents = session.amount_total;
+                const applicationFeeAmount = Math.round((amountInCents * PLATFORM_FEE_PERCENT) / 100);
+                const ownerAmount = amountInCents - applicationFeeAmount;
+                const ownerStripeAccountId = land.owner?.stripeAccountId || session.metadata?.ownerStripeAccountId;
+                
+                booking.totalAmount = price;
+                booking.platformFeeAmount = applicationFeeAmount / 100;
+                booking.ownerAmount = ownerAmount / 100;
+                booking.currency = currency;
+                booking.isPaid = true;
+                booking.paymentStatus = "paid";
+                booking.paymentId = session.payment_intent || session.id;
+                booking.stripePaymentIntentId = session.payment_intent || null;
+                booking.bookingStatus = "completed";
+                
+                // After successful payment, transfer the owner's portion
+                let transferId = null;
+                let transferError = null;
+                
+                try {
+                  if (ownerStripeAccountId) {
+                    // Create a transfer to the connected account
+                    const transfer = await stripe.transfers.create({
+                      amount: ownerAmount, // Transfer the owner's portion (97%)
+                      currency: currency,
+                      destination: ownerStripeAccountId,
+                      transfer_group: `booking_${booking._id}`,
+                      metadata: {
+                        bookingId: String(booking._id),
+                        userId: String(booking.userId),
+                        landId: String(booking.LandId)
+                      },
+                      description: `Transfer for booking ${booking._id}`
+                    });
+                    
+                    transferId = transfer.id;
+                    booking.stripeTransferId = transfer.id;
+                    console.log(`Webhook transfer completed: ${transfer.id}`);
+                  }
+                } catch (e) {
+                  console.error("Webhook transfer error:", e);
+                  transferError = e.message;
+                  booking.transferError = e.message;
+                }
+                
+                await booking.save();
+                
+                // Create transaction record
+                try {
+                  const receiveUser = land?.owner;
+                  await Transaction.create({
+                    bookingId: booking._id,
+                    payUser: booking.userId,
+                    payUserRole: "traveler",
+                    receiveUser,
+                    receiveUserRole: "landowner",
+                    amount: booking.totalAmount,
+                    platformFeeAmount: booking.platformFeeAmount || 0,
+                    ownerAmount: booking.ownerAmount || 0,
+                    currency: booking.currency || "usd",
+                    paymentMethod: "Stripe",
+                    transactionId: booking.stripePaymentIntentId || booking.paymentId,
+                    stripeSessionId: booking.stripeSessionId,
+                    transferId: transferId,
+                    transferError: transferError,
+                    paymentStatus: transferError ? "platform_paid_only" : "Completed",
+                  });
+                } catch (e) {
+                  console.error("Transaction create error in webhook", e);
+                }
+              }
+            }
           }
         }
         break;

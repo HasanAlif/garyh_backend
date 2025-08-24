@@ -54,7 +54,7 @@ export const getSavedLands = async (req, res) => {
     const user = await User.findById(userId)
       .populate(
         "savedLands",
-        "spot location price image isAvailable description amenities"
+        "spot location price image isAvailable description amenities totalRatings averageRating"
       )
       .select("savedLands");
 

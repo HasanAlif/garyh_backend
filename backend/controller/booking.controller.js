@@ -322,8 +322,8 @@ export const verifyBooking = async (req, res) => {
       success: true,
       message:
         "Booking verified. Redirect to Stripe Checkout to complete payment.",
-      redirectUrl: session.url,
-      sessionId: session.id,
+      // redirectUrl: session.url,
+      // sessionId: session.id,
       bookingId: booking._id,
       booking: {
         status: booking.bookingStatus,

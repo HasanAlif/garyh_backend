@@ -54,9 +54,12 @@ const transactionSchema = new Schema(
       required: true,
     },
     stripeSessionId: { type: String },
+    transferId: { type: String },
+    transferError: { type: String },
+    payoutId: { type: String },
     paymentStatus: {
       type: String,
-      enum: ["Completed", "Pending", "Failed", "Refunded"],
+      enum: ["Completed", "Pending", "Failed", "Refunded", "platform_paid_only"],
       default: "Completed",
     },
     active: {

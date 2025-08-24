@@ -14,7 +14,7 @@ const router = express.Router();
 
 router.get("/my-bookings", protectRoute, getUserBookings);
 router.post("/change-password", protectRoute, updatePassword);
-router.post("/update-profile", protectRoute, updateProfile);
+router.patch("/update-profile", protectRoute, updateProfile);
 
 router.get("/overview", protectRoute, landOwnerRoute, AllBookingLand);
 router.get("/all-reviews", protectRoute, landOwnerRoute, allRatingReviews);

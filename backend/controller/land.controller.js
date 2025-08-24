@@ -563,12 +563,26 @@ export const filterLands = async (req, res) => {
 
     // Base query - only show available lands for public filtering
     const query = { isAvailable: true };
+    const queryParams = {}; // For additional filtering parameters
 
     if (minPrice && minPrice.trim() !== "") {
       query.price = { ...query.price, $gte: Number(minPrice) };
+      queryParams.min_price = minPrice;
     }
     if (maxPrice && maxPrice.trim() !== "") {
       query.price = { ...query.price, $lte: Number(maxPrice) };
+      queryParams.max_price = maxPrice;
+    }
+
+    // Additional handling for filters object if needed
+    const filters = {
+      minPrice: minPrice || null,
+      maxPrice: maxPrice || null,
+      minRating: minRating || null
+    };
+    
+    if (filters.maxPrice !== null) {
+      queryParams.max_price = filters.maxPrice;
     }
 
     const parseArrayParam = (param) => {
@@ -632,6 +646,7 @@ export const filterLands = async (req, res) => {
         site_length: siteLengthArray,
         max_slide: maxSlideArray,
       },
+      queryParams, // Include queryParams in the response
       data: results,
     });
   } catch (error) {
@@ -691,6 +706,7 @@ export const searchAndFilterLands = async (req, res) => {
     console.log("Search and filter parameters received:", req.query);
 
     const query = { isAvailable: true };
+    const queryParams = {}; // For additional filtering parameters
 
     if (location && location.trim() !== "") {
       query.location = { $regex: location.trim(), $options: "i" };
@@ -698,9 +714,22 @@ export const searchAndFilterLands = async (req, res) => {
 
     if (minPrice && minPrice.trim() !== "") {
       query.price = { ...query.price, $gte: Number(minPrice) };
+      queryParams.min_price = minPrice;
     }
     if (maxPrice && maxPrice.trim() !== "") {
       query.price = { ...query.price, $lte: Number(maxPrice) };
+      queryParams.max_price = maxPrice;
+    }
+
+    // Additional handling for filters object if needed
+    const filters = {
+      minPrice: minPrice || null,
+      maxPrice: maxPrice || null,
+      minRating: minRating || null
+    };
+    
+    if (filters.maxPrice !== null) {
+      queryParams.max_price = filters.maxPrice;
     }
 
     const parseArrayParam = (param) => {
@@ -769,6 +798,7 @@ export const searchAndFilterLands = async (req, res) => {
         site_length: siteLengthArray,
         max_slide: maxSlideArray,
       },
+      queryParams, // Include queryParams in the response
       data: results,
     });
   } catch (error) {

@@ -573,10 +573,10 @@ export const updateProfile = async (req, res) => {
     const userId = req.user._id;
     const { name, phoneNumber, address, image } = req.body;
 
-    if (!name && !phoneNumber && !address && !image) {
+    if (Object.keys(req.body).length === 0) {
       return res.status(400).json({
         message:
-          "At least one field (name, phoneNumber, address, or image) is required",
+          "No update fields provided. Please provide at least one field to update.",
       });
     }
 
@@ -617,9 +617,22 @@ export const updateProfile = async (req, res) => {
 
     if (image) {
       try {
+        const isBase64Image = image.startsWith("data:image/");
+
+        if (!isBase64Image) {
+          return res.status(400).json({
+            message:
+              "Invalid image format. Please upload an image directly rather than using a URL.",
+          });
+        }
+
         if (user.image) {
-          const publicId = user.image.split("/").pop().split(".")[0];
-          await cloudinary.uploader.destroy(`profile_images/${publicId}`);
+          try {
+            const publicId = user.image.split("/").pop().split(".")[0];
+            await cloudinary.uploader.destroy(`profile_images/${publicId}`);
+          } catch (destroyError) {
+            console.log("Error removing previous image:", destroyError);
+          }
         }
 
         const cloudinaryResponse = await cloudinary.uploader.upload(image, {
@@ -634,9 +647,34 @@ export const updateProfile = async (req, res) => {
         updateData.image = cloudinaryResponse.secure_url;
       } catch (cloudinaryError) {
         console.error("Cloudinary upload error:", cloudinaryError);
-        return res.status(400).json({
-          message: "Failed to upload image. Please try again.",
-        });
+        if (cloudinaryError.http_code === 404) {
+          return res.status(400).json({
+            message:
+              "The image URL could not be found. Please upload an image file directly.",
+          });
+        } else if (
+          cloudinaryError.message &&
+          cloudinaryError.message.includes("File size too large")
+        ) {
+          return res.status(400).json({
+            message:
+              "The image file is too large. Please use a smaller image (less than 10MB).",
+          });
+        } else if (
+          cloudinaryError.message &&
+          cloudinaryError.message.includes("Invalid image format")
+        ) {
+          return res.status(400).json({
+            message:
+              "Invalid image format. Please use JPG, PNG, or WebP format.",
+          });
+        } else {
+          return res.status(400).json({
+            message:
+              "Failed to upload image. Please try again with a different image.",
+            error: cloudinaryError.message,
+          });
+        }
       }
     }
 

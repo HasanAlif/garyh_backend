@@ -25,7 +25,7 @@ app.use(
 );
 
 app.post(
-  "/api/payments/webhook",
+  "/webhook",
   express.raw({ type: "application/json" }),
   stripeWebhook
 );
