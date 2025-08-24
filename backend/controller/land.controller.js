@@ -1,5 +1,7 @@
 ﻿import cloudinary from "../lib/cloudinary.js";
 import Land from "../models/land.model.js";
+import StripeAccount from "../models/stripeAccount.model.js";
+import { stripe } from "../lib/stripe.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -61,6 +63,43 @@ export const createLand = async (req, res) => {
       isAvailable,
       price,
     } = req.body;
+
+    // Validate that the user is a landowner
+    if (req.user.role !== "landowner") {
+      return res.status(403).json({
+        success: false,
+        message: "Only landowners can create land listings",
+      });
+    }
+
+    // Check if landowner has bank information set up for receiving payments
+    const hasStripeAccount = await StripeAccount.findOne({ user: req.user._id });
+    
+    if (!hasStripeAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "Please first add your bank information for receiving your money from bookings. You can set up your bank account at: /api/payment/stripe_bank/create",
+      });
+    }
+
+    // Verify that the Stripe account is properly set up and can receive payments
+    try {
+      const stripeAccount = await stripe.accounts.retrieve(hasStripeAccount.stripeAccountId);
+      const transfersActive = stripeAccount?.capabilities?.transfers === "active";
+      
+      if (!transfersActive) {
+        return res.status(400).json({
+          success: false,
+          message: "Your bank account setup is incomplete. Please complete your Stripe onboarding process to receive payments from bookings.",
+        });
+      }
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: "Error validating your bank account. Please ensure your bank information is properly set up.",
+        error: error.message,
+      });
+    }
 
     const parseArrayField = (field) => {
       if (typeof field === "string") {
