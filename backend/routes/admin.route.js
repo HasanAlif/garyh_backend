@@ -3,6 +3,12 @@ import {
   getDashboardStats,
   getBookingStats,
   getRecentActivities,
+  getUsers,
+  getUserById,
+  suspendUser,
+  activateUser,
+  deleteUser,
+  searchUsers,
 } from "../controller/admin.controller.js";
 import { adminRoute, protectRoute } from "../middleware/auth.middleware.js";
 
@@ -11,5 +17,14 @@ const router = express.Router();
 router.get("/dashboard-stats", protectRoute, adminRoute, getDashboardStats);
 router.get("/booking-stats", protectRoute, adminRoute, getBookingStats);
 router.get("/recent-activities", protectRoute, adminRoute, getRecentActivities);
+
+// User management routes
+router.get("/users", protectRoute, adminRoute, getUsers);
+router.get("/users/search", protectRoute, adminRoute, searchUsers);
+router.get("/users/:userId", protectRoute, adminRoute, getUserById);
+router.get("/users/search", protectRoute, adminRoute, searchUsers);
+router.patch("/users/suspend/:userId", protectRoute, adminRoute, suspendUser);
+router.patch("/users/activate/:userId", protectRoute, adminRoute, activateUser);
+router.delete("/users/:userId", protectRoute, adminRoute, deleteUser);
 
 export default router;

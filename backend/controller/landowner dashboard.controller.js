@@ -38,12 +38,10 @@ export const AllBookingLand = async (req, res) => {
       const checkIn = new Date(booking.checkIn);
       const checkOut = new Date(booking.checkOut);
       const checkInFormatted = checkIn.toLocaleDateString("en-US", {
-        year: "numeric",
         month: "short",
         day: "numeric",
       });
       const checkOutFormatted = checkOut.toLocaleDateString("en-US", {
-        year: "numeric",
         month: "short",
         day: "numeric",
       });

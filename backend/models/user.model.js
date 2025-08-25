@@ -44,6 +44,11 @@ const userSchema = new mongoose.Schema(
         ref: "Land",
       },
     ],
+    status: {
+      type: String,
+      enum: ["active", "suspended"],
+      default: "active",
+    },
     resetPasswordToken: String,
     resetPasswordExpiresAt: Date,
     resetCodeVerified: {
