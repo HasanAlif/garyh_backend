@@ -329,3 +329,180 @@ export const getBookingStats = async (req, res) => {
     });
   }
 };
+
+export const getRecentActivities = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50; // Default to 50 recent activities
+    const activities = [];
+
+    // Get recent user registrations
+    const recentUsers = await User.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit / 5)
+      .select('name email createdAt role');
+
+    recentUsers.forEach(user => {
+      activities.push({
+        time: user.createdAt.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        userName: user.name,
+        activity: 'User Registration',
+        description: `New ${user.role} registered`,
+        details: {
+          type: 'user_registration',
+          userId: user._id,
+          role: user.role,
+          email: user.email
+        },
+        priority: 'medium'
+      });
+    });
+
+    // Get recent bookings
+    const recentBookings = await Booking.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit / 5)
+      .populate('userId', 'name email')
+      .populate('LandId', 'spot location')
+      .select('name email bookingStatus totalAmount checkIn checkOut createdAt');
+
+    recentBookings.forEach(booking => {
+      activities.push({
+        time: booking.createdAt.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        userName: booking.userId?.name || booking.name,
+        activity: 'New Booking',
+        description: `Booked ${booking.LandId?.spot || 'land'} for $${booking.totalAmount || 0}`,
+        details: {
+          type: 'booking_created',
+          bookingId: booking._id,
+          status: booking.bookingStatus,
+          amount: booking.totalAmount,
+          checkIn: booking.checkIn,
+          checkOut: booking.checkOut,
+          landSpot: booking.LandId?.spot || 'Unknown'
+        },
+        priority: 'high'
+      });
+    });
+
+    // Get recent land listings
+    const recentLands = await Land.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit / 5)
+      .populate('owner', 'name email')
+      .select('spot location price owner createdAt');
+
+    recentLands.forEach(land => {
+      activities.push({
+        time: land.createdAt.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        userName: land.owner?.name || 'Unknown Owner',
+        activity: 'Land Listed',
+        description: `Listed ${land.spot} at ${land.location} for $${land.price}/night`,
+        details: {
+          type: 'land_listed',
+          landId: land._id,
+          spot: land.spot,
+          location: land.location,
+          price: land.price,
+          ownerId: land.owner?._id
+        },
+        priority: 'medium'
+      });
+    });
+
+    // Get recent transactions
+    const recentTransactions = await Transaction.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit / 5)
+      .populate('payUser', 'name email')
+      .populate('receiveUser', 'name email')
+      .select('amount platformFeeAmount paymentStatus payUser receiveUser createdAt');
+
+    recentTransactions.forEach(transaction => {
+      activities.push({
+        time: transaction.createdAt.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        userName: transaction.payUser?.name || 'Unknown User',
+        activity: 'Payment Processed',
+        description: `Payment of $${transaction.amount} - Status: ${transaction.paymentStatus}`,
+        details: {
+          type: 'payment_processed',
+          transactionId: transaction._id,
+          amount: transaction.amount,
+          platformFee: transaction.platformFeeAmount,
+          status: transaction.paymentStatus,
+          payerName: transaction.payUser?.name,
+          receiverName: transaction.receiveUser?.name
+        },
+        priority: transaction.paymentStatus === 'Completed' ? 'high' : 'medium'
+      });
+    });
+
+
+    // Sort all activities by time (most recent first)
+    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+    // Limit to requested number of activities
+    const limitedActivities = activities.slice(0, limit);
+
+    // Calculate activity statistics
+    const activityStats = {
+      total: limitedActivities.length,
+      byType: {},
+      byPriority: {
+        high: limitedActivities.filter(a => a.priority === 'high').length,
+        medium: limitedActivities.filter(a => a.priority === 'medium').length,
+        low: limitedActivities.filter(a => a.priority === 'low').length
+      },
+      lastActivity: limitedActivities[0]?.time || null
+    };
+
+    // Count by activity type
+    limitedActivities.forEach(activity => {
+      const type = activity.details.type;
+      activityStats.byType[type] = (activityStats.byType[type] || 0) + 1;
+    });
+
+
+    res.json({
+      success: true,
+      activities: limitedActivities,
+      //statistics: activityStats,
+      pagination: {
+        limit,
+        total: limitedActivities.length,
+        hasMore: activities.length > limit
+      },
+      generatedAt: new Date().toISOString()
+    });
+
+  } catch (err) {
+    console.error("Error fetching recent activities:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+}

@@ -220,6 +220,8 @@ export const getTransactions = async (req, res) => {
         year: "numeric",
         month: "short",
         day: "numeric",
+      }),
+      time: transaction.createdAt.toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
       }),
