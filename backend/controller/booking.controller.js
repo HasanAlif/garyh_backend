@@ -411,7 +411,7 @@ export const getUserBookings = async (req, res) => {
         image:
           booking.LandId?.images && booking.LandId.images.length > 0
             ? booking.LandId.images[0]
-            : null,
+            : [],
         price: parseFloat((booking.totalAmount || 0).toFixed(2)),
         status: booking.bookingStatus,
         isVerified: booking.isVerified,

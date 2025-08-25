@@ -12,6 +12,7 @@ import dashboardRoutes from "./routes/dashboard.route.js";
 import messageRoutes from "./routes/message.route.js";
 import paymentRoutes from "./routes/payment.route.js";
 import { stripeWebhook } from "./controller/payment.controller.js";
+import adminRoute from "./routes/admin.route.js";
 
 dotenv.config();
 
@@ -24,11 +25,7 @@ app.use(
   })
 );
 
-app.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  stripeWebhook
-);
+app.post("/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -51,6 +48,7 @@ app.use("/api/global", globalRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/message", messageRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/admin", adminRoute);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
