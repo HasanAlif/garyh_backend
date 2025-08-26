@@ -239,10 +239,9 @@ export const getOwnerAllLand = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const lands = await Land.find({ owner: userId }).populate(
-      "owner",
-      "name email"
-    );
+    const lands = await Land.find({ owner: userId })
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 });
 
     res.json({
       message: `Found ${lands.length} land(s) owned by you`,
@@ -301,60 +300,38 @@ export const getAllLands = async (req, res) => {
   }
 };
 
-// {This will use after Merge with frontend and can upload images to Cloudinary}
-
-// export const deleteLand = async (req, res) => {
-//   try {
-//     const land = await Land.findById(req.params.id);
-//     if (!land) {
-//       return res.status(404).json({ message: "Land not found" });
-//     }
-
-//     if (land.image) {
-//       const publicId = land.image.split("/").pop().split(".")[0];
-
-//       try {
-//         await cloudinary.uploader.destroy(`land_images/${publicId}`);
-//         console.log("Image deleted from Cloudinary");
-//       } catch (error) {
-//         res
-//           .status(500)
-//           .json({
-//             message: "Error deleting image from Cloudinary",
-//             error: error.message,
-//           });
-//       }
-
-//       await Land.findByIdAndDelete(req.params.id);
-
-//       res.status(200).json({ message: "Land deleted successfully" });
-//     }
-
-//   } catch (error) {
-//     res.status(500).json({ message: "Server Error", error: error.message });
-//   }
-// };
-
 export const deleteLand = async (req, res) => {
   try {
-    const { id } = req.params;
     const userId = req.user._id;
-
-    // First find the land to check ownership
-    const land = await Land.findById(id);
+    const land = await Land.findById(req.params.id);
     if (!land) {
       return res.status(404).json({ message: "Land not found" });
     }
 
-    // Check if the current user is the owner of this land
     if (land.owner.toString() !== userId.toString()) {
       return res.status(403).json({
         message: "Access denied. You can only delete your own land listings.",
       });
     }
 
-    // If ownership is verified, proceed with deletion
-    await Land.findByIdAndDelete(id);
+    // Delete images from Cloudinary if they exist
+    if (land.image && land.image.length > 0) {
+      try {
+        // Process each image in the array
+        for (const imageUrl of land.image) {
+          if (imageUrl && typeof imageUrl === "string") {
+            const publicId = imageUrl.split("/").pop().split(".")[0];
+            await cloudinary.uploader.destroy(`land_images/${publicId}`);
+          }
+        }
+        console.log("Images deleted from Cloudinary");
+      } catch (error) {
+        console.error("Error deleting images from Cloudinary:", error.message);
+        // Continue with land deletion even if image deletion fails
+      }
+    }
+
+    await Land.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       message: "Land deleted successfully",
