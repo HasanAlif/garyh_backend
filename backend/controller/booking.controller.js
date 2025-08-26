@@ -58,7 +58,13 @@ export const bookingLand = async (req, res) => {
       });
     }
 
-    if (checkInDate < new Date()) {
+    // Allow bookings for today - only reject if check-in date is before today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of today
+    const checkInDateOnly = new Date(checkInDate);
+    checkInDateOnly.setHours(0, 0, 0, 0); // Set to start of check-in date
+
+    if (checkInDateOnly < today) {
       return res.status(400).json({
         error: "Check-in date cannot be in the past",
       });

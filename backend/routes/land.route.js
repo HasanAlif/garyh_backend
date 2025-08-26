@@ -8,7 +8,8 @@ import {
   filterLands,
   searchByLocation,
   searchAndFilterLands,
-  getLandOwnerFeatured
+  getLandOwnerFeatured,
+  getLandDetails
 } from "../controller/land.controller.js";
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.post("/updateland/:id", protectRoute, landOwnerRoute, updateLand);
 router.delete("/deleteland/:id", protectRoute, landOwnerRoute, deleteLand);
 
 // Filter lands using query parameters
+router.get("/land-details/:id", protectRoute, getLandDetails);
 router.get("/filter", protectRoute, filterLands);
 router.get("/search", protectRoute, searchByLocation);
 router.get("/search-filter", searchAndFilterLands);

@@ -52,6 +52,7 @@ export const createLand = async (req, res) => {
   try {
     const {
       location,
+      gps_coordinates,
       image,
       spot,
       amenities,
@@ -64,7 +65,6 @@ export const createLand = async (req, res) => {
       price,
     } = req.body;
 
-    // Validate that the user is a landowner
     if (req.user.role !== "landowner") {
       return res.status(403).json({
         success: false,
@@ -72,31 +72,69 @@ export const createLand = async (req, res) => {
       });
     }
 
+    if (!gps_coordinates) {
+      return res.status(400).json({
+        success: false,
+        message: "GPS coordinates are required",
+      });
+    }
+
+    const { latitude, longitude } = gps_coordinates;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: "Both latitude and longitude are required in GPS coordinates",
+      });
+    }
+
+    if (latitude < -90 || latitude > 90) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude must be between -90 and 90 degrees",
+      });
+    }
+
+    if (longitude < -180 || longitude > 180) {
+      return res.status(400).json({
+        success: false,
+        message: "Longitude must be between -180 and 180 degrees",
+      });
+    }
+
     // Check if landowner has bank information set up for receiving payments
-    const hasStripeAccount = await StripeAccount.findOne({ user: req.user._id });
-    
+    const hasStripeAccount = await StripeAccount.findOne({
+      user: req.user._id,
+    });
+
     if (!hasStripeAccount) {
       return res.status(400).json({
         success: false,
-        message: "Please first add your bank information for receiving your money from bookings. You can set up your bank account at: /api/payment/stripe_bank/create",
+        message:
+          "Please first add your bank information for receiving your money from bookings. You can set up your bank account at: /api/payment/stripe_bank/create",
       });
     }
 
     // Verify that the Stripe account is properly set up and can receive payments
     try {
-      const stripeAccount = await stripe.accounts.retrieve(hasStripeAccount.stripeAccountId);
-      const transfersActive = stripeAccount?.capabilities?.transfers === "active";
-      
+      const stripeAccount = await stripe.accounts.retrieve(
+        hasStripeAccount.stripeAccountId
+      );
+      const transfersActive =
+        stripeAccount?.capabilities?.transfers === "active";
+
       if (!transfersActive) {
         return res.status(400).json({
           success: false,
-          message: "Your bank account setup is incomplete. Please complete your Stripe onboarding process to receive payments from bookings.",
+          message:
+            "Your bank account setup is incomplete. Please complete your Stripe onboarding process to receive payments from bookings.",
         });
       }
     } catch (error) {
       return res.status(400).json({
         success: false,
-        message: "Error validating your bank account. Please ensure your bank information is properly set up.",
+        message:
+          "Error validating your bank account. Please ensure your bank information is properly set up.",
         error: error.message,
       });
     }
@@ -168,6 +206,10 @@ export const createLand = async (req, res) => {
 
     const land = await Land.create({
       location,
+      gps_coordinates: {
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+      },
       image: uploadedImages,
       spot,
       amenities: parseArrayField(amenities),
@@ -331,6 +373,7 @@ export const updateLand = async (req, res) => {
   const { id } = req.params;
   const {
     location,
+    gps_coordinates,
     image,
     spot,
     amenities,
@@ -373,6 +416,40 @@ export const updateLand = async (req, res) => {
     const updateData = {};
 
     if (location !== undefined) updateData.location = location;
+
+    if (gps_coordinates !== undefined) {
+      const { latitude, longitude } = gps_coordinates;
+
+      if (latitude !== undefined || longitude !== undefined) {
+        if (latitude === undefined || longitude === undefined) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Both latitude and longitude are required when updating GPS coordinates",
+          });
+        }
+
+        if (latitude < -90 || latitude > 90) {
+          return res.status(400).json({
+            success: false,
+            message: "Latitude must be between -90 and 90 degrees",
+          });
+        }
+
+        if (longitude < -180 || longitude > 180) {
+          return res.status(400).json({
+            success: false,
+            message: "Longitude must be between -180 and 180 degrees",
+          });
+        }
+
+        updateData.gps_coordinates = {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+        };
+      }
+    }
+
     if (image !== undefined) updateData.image = image;
     if (spot !== undefined) updateData.spot = spot;
     if (description !== undefined) updateData.description = description;
@@ -416,6 +493,28 @@ export const updateLand = async (req, res) => {
     });
   } catch (error) {
     console.error("Update error:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+export const getLandDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const land = await Land.findById(id)
+      .populate("owner", "name email")
+      .populate("ratingsAndReviews.user", "name email");
+
+    if (!land) {
+      return res.status(404).json({ message: "Land not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      land,
+    });
+  } catch (error) {
+    console.error("Error getting land details:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
