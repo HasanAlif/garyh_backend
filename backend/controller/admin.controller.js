@@ -204,11 +204,6 @@ export const getBookingStats = async (req, res) => {
     // Calculate overall growth data for userOverview
     const firstMonthUsers = userOverview[0]?.users || 0;
     const latestMonthUsers = userOverview[userOverview.length - 1]?.users || 0;
-    // const totalUsersInPeriod = userOverview.reduce(
-    //   (sum, month) => sum + month.users,
-    //   0
-    // );
-    //const avgUsersPerMonth = totalUsersInPeriod / userOverview.length;
     const userOverallGrowth =
       firstMonthUsers > 0
         ? ((latestMonthUsers - firstMonthUsers) / firstMonthUsers) * 100
@@ -220,17 +215,6 @@ export const getBookingStats = async (req, res) => {
     const firstMonthBookings = bookingOverview[0]?.totalBookings || 0;
     const latestMonthBookings =
       bookingOverview[bookingOverview.length - 1]?.totalBookings || 0;
-    // const totalBookingsInPeriod = bookingOverview.reduce(
-    //   (sum, month) => sum + month.totalBookings,
-    //   0
-    // );
-    // const totalCompletedInPeriod = bookingOverview.reduce(
-    //   (sum, month) => sum + month.completedBookings,
-    //   0
-    // );
-    // const avgBookingsPerMonth = totalBookingsInPeriod / bookingOverview.length;
-    // const avgCompletedPerMonth =
-    //   totalCompletedInPeriod / bookingOverview.length;
     const bookingOverallGrowth =
       firstMonthBookings > 0
         ? ((latestMonthBookings - firstMonthBookings) / firstMonthBookings) *
@@ -238,25 +222,6 @@ export const getBookingStats = async (req, res) => {
         : latestMonthBookings > 0
         ? 100
         : 0;
-
-    // Calculate completion rate
-    // const overallCompletionRate =
-    //   totalBookingsInPeriod > 0
-    //     ? (totalCompletedInPeriod / totalBookingsInPeriod) * 100
-    //     : 0;
-
-    // Find best performing month for users
-    // const bestUserMonth = userOverview.reduce(
-    //   (best, current) => (current.users > best.users ? current : best),
-    //   userOverview[0] || {}
-    // );
-
-    // Find best performing month for bookings
-    // const bestBookingMonth = bookingOverview.reduce(
-    //   (best, current) =>
-    //     current.totalBookings > best.totalBookings ? current : best,
-    //   bookingOverview[0] || {}
-    // );
 
     res.json({
       success: true,
@@ -268,16 +233,6 @@ export const getBookingStats = async (req, res) => {
         },
         overallGrowth: {
           totalGrowthPercentage: parseFloat(userOverallGrowth.toFixed(1)),
-          //   totalUsersInPeriod,
-          //   averageUsersPerMonth: parseFloat(avgUsersPerMonth.toFixed(1)),
-          //   firstMonthUsers,
-          //   lastMonthUsers: latestMonthUsers,
-          //   bestPerformingMonth: {
-          //     month: bestUserMonth.month,
-          //     year: bestUserMonth.year,
-          //     users: bestUserMonth.users,
-          //     growthPercentage: bestUserMonth.growthPercentage,
-          //   },
           trend:
             latestMonthUsers > firstMonthUsers
               ? "upward"
@@ -294,20 +249,6 @@ export const getBookingStats = async (req, res) => {
         },
         overallGrowth: {
           totalGrowthPercentage: parseFloat(bookingOverallGrowth.toFixed(1)),
-          //   totalBookingsInPeriod,
-          //   totalCompletedInPeriod,
-          //   averageBookingsPerMonth: parseFloat(avgBookingsPerMonth.toFixed(1)),
-          //   averageCompletedPerMonth: parseFloat(avgCompletedPerMonth.toFixed(1)),
-          //   overallCompletionRate: parseFloat(overallCompletionRate.toFixed(1)),
-          //   firstMonthBookings,
-          //   lastMonthBookings: latestMonthBookings,
-          //   bestPerformingMonth: {
-          //     month: bestBookingMonth.month,
-          //     year: bestBookingMonth.year,
-          //     totalBookings: bestBookingMonth.totalBookings,
-          //     completedBookings: bestBookingMonth.completedBookings,
-          //     totalGrowthPercentage: bestBookingMonth.totalGrowthPercentage,
-          //   },
           trend:
             latestMonthBookings > firstMonthBookings
               ? "upward"
@@ -338,7 +279,6 @@ export const getRecentActivities = async (req, res) => {
     // Get recent user registrations
     const recentUsers = await User.find({})
       .sort({ createdAt: -1 })
-      .limit(limit / 5)
       .select("name email createdAt role");
 
     recentUsers.forEach((user) => {
@@ -366,7 +306,6 @@ export const getRecentActivities = async (req, res) => {
     // Get recent bookings
     const recentBookings = await Booking.find({})
       .sort({ createdAt: -1 })
-      .limit(limit / 5)
       .populate("userId", "name email")
       .populate("LandId", "spot location")
       .select(
@@ -403,7 +342,6 @@ export const getRecentActivities = async (req, res) => {
     // Get recent land listings
     const recentLands = await Land.find({})
       .sort({ createdAt: -1 })
-      .limit(limit / 5)
       .populate("owner", "name email")
       .select("spot location price owner createdAt");
 
@@ -434,7 +372,6 @@ export const getRecentActivities = async (req, res) => {
     // Get recent transactions
     const recentTransactions = await Transaction.find({})
       .sort({ createdAt: -1 })
-      .limit(limit / 5)
       .populate("payUser", "name email")
       .populate("receiveUser", "name email")
       .select(
@@ -492,13 +429,13 @@ export const getRecentActivities = async (req, res) => {
 
     res.json({
       success: true,
-      activities: limitedActivities,
-      //statistics: activityStats,
       pagination: {
         limit,
         total: limitedActivities.length,
         hasMore: activities.length > limit,
       },
+      activities: limitedActivities,
+      //statistics: activityStats,
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {
@@ -514,29 +451,10 @@ export const getUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const search = req.query.search || "";
-    const role = req.query.role || "";
-    const status = req.query.status || "";
 
-    // Build search query
-    let query = {};
+    const total = await User.countDocuments();
 
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    if (role) {
-      query.role = role;
-    }
-
-    if (status) {
-      query.status = status;
-    }
-
-    const users = await User.find(query)
+    const users = await User.find()
       .select(
         "-password -resetPasswordToken -verificationToken -bank_account_number -routing_number"
       ) // Exclude sensitive fields
@@ -544,9 +462,6 @@ export const getUsers = async (req, res) => {
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
 
-    const total = await User.countDocuments(query);
-
-    // Format users data for admin management
     const formattedUsers = users.map((user) => ({
       id: user._id,
       userName: user.name,
@@ -560,41 +475,11 @@ export const getUsers = async (req, res) => {
         minute: "2-digit",
       }),
       userStatus: user.status || "active",
-      //   isVerified: user.isVerified,
-      //   phoneNumber: user.phoneNumber || 'N/A',
-      //   address: user.address || 'N/A',
-      //   savedLandsCount: user.savedLands?.length || 0,
-      //   hasStripeAccount: !!user.stripeAccountId,
-      //   hasBankInfo: !!(user.bank_name && user.bank_holder_name),
-      //   lastActivity: user.updatedAt,
-      //   actions: {
-      //     canView: true,
-      //     canDelete: user.role !== 'admin', // Admins cannot delete other admins
-      //     canSuspend: user.role !== 'admin' && user.status !== 'suspended',
-      //     canActivate: user.status === 'suspended'
-      //   }
     }));
-
-    // Calculate user statistics
-    // const stats = {
-    //   total,
-    //   active: await User.countDocuments({ ...query, status: 'active' }),
-    //   suspended: await User.countDocuments({ ...query, status: 'suspended' }),
-    //   verified: await User.countDocuments({ ...query, isVerified: true }),
-    //   unverified: await User.countDocuments({ ...query, isVerified: false }),
-    //   byRole: {
-    //     traveler: await User.countDocuments({ ...query, role: 'traveler' }),
-    //     landowner: await User.countDocuments({ ...query, role: 'landowner' }),
-    //     admin: await User.countDocuments({ ...query, role: 'admin' })
-    //   }
-    // };
-
-    console.log(`Fetched ${formattedUsers.length} users for admin management`);
 
     res.json({
       success: true,
-      users: formattedUsers,
-      //statistics: stats,
+      totalUsers: total,
       pagination: {
         total,
         page: parseInt(page),
@@ -603,11 +488,7 @@ export const getUsers = async (req, res) => {
         hasNext: page < Math.ceil(total / limit),
         hasPrev: page > 1,
       },
-      //   filters: {
-      //     search,
-      //     role,
-      //     status
-      //   }
+      users: formattedUsers,
     });
   } catch (err) {
     console.error("Error fetching users:", err);
@@ -642,33 +523,6 @@ export const getUserById = async (req, res) => {
       });
     }
 
-    // Get user's bookings if they're a traveler
-    // let bookings = [];
-    // if (user.role === 'traveler') {
-    //   bookings = await Booking.find({ userId: user._id })
-    //     .populate('LandId', 'spot location')
-    //     .sort({ createdAt: -1 })
-    //     .limit(10);
-    // }
-
-    // Get user's lands if they're a landowner
-    // let lands = [];
-    // if (user.role === 'landowner') {
-    //   lands = await Land.find({ owner: user._id })
-    //     .sort({ createdAt: -1 })
-    //     .limit(10);
-    // }
-
-    // Get user's transactions
-    // const transactions = await Transaction.find({
-    //   $or: [
-    //     { payUser: user._id },
-    //     { receiveUser: user._id }
-    //   ]
-    // })
-    // .sort({ createdAt: -1 })
-    // .limit(10);
-
     const userDetails = {
       //id: user._id,
       userName: user.name,
@@ -682,28 +536,6 @@ export const getUserById = async (req, res) => {
       }),
       accountType: user.role,
       userEmail: user.email,
-      //   userStatus: user.status || 'active',
-      //   createdDate: user.createdAt,
-      //   updatedDate: user.updatedAt,
-      //   isVerified: user.isVerified,
-      //   phoneNumber: user.phoneNumber,
-      //   address: user.address,
-      //   savedLands: user.savedLands,
-      //   stripeAccountId: user.stripeAccountId,
-      //   bankInfo: {
-      //     hasBank: !!(user.bank_name && user.bank_holder_name),
-      //     bankName: user.bank_name,
-      //     holderName: user.bank_holder_name,
-      //     // Don't send actual account numbers for security
-      //   },
-      //   activity: {
-      //     bookings: bookings.length,
-      //     lands: lands.length,
-      //     transactions: transactions.length
-      //   },
-      //   recentBookings: bookings,
-      //   recentLands: lands,
-      //   recentTransactions: transactions
     };
 
     res.json({
@@ -822,7 +654,6 @@ export const activateUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Validate ObjectId format
     if (!userId.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({
         success: false,
@@ -872,7 +703,6 @@ export const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Validate ObjectId format
     if (!userId.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({
         success: false,
@@ -895,10 +725,6 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    // Delete related data (optional - you might want to keep for audit trail)
-    // await Booking.deleteMany({ userId: user._id });
-    // await Land.deleteMany({ owner: user._id });
-
     await User.findByIdAndDelete(userId);
 
     console.log(`User ${user.name} (${user.email}) deleted by admin`);
@@ -917,6 +743,60 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({
       success: false,
       error: err.message,
+    });
+  }
+};
+
+export const getAllSpots = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const total = await Land.countDocuments();
+
+    // Fetch spots with pagination
+    const spots = await Land.find()
+      .populate("owner", "name email")
+      .select("spot image price isAvailable location owner createdAt")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    // Format spots data for admin view
+    const formattedSpots = spots.map((spot) => ({
+      id: spot._id,
+      spotName: spot.spot,
+      spotImage: spot.image && spot.image.length > 0 ? spot.image[0] : null,
+      listedBy: spot.owner?.name || "Unknown Owner",
+      ownerEmail: spot.owner?.email || "N/A",
+      price: `$${spot.price}/night`,
+      status: spot.isAvailable ? "Available" : "Not Available",
+      location: spot.location,
+      listedDate: spot.createdAt.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+    }));
+
+    res.json({
+      success: true,
+      totalSpots: total,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+        limit: parseInt(limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
+      },
+      spots: formattedSpots,
+    });
+  } catch (error) {
+    console.error("Error fetching spots:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 };

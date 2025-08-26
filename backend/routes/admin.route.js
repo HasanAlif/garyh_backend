@@ -9,6 +9,7 @@ import {
   activateUser,
   deleteUser,
   searchUsers,
+  getAllSpots,
 } from "../controller/admin.controller.js";
 import { adminRoute, protectRoute } from "../middleware/auth.middleware.js";
 
@@ -26,5 +27,8 @@ router.get("/users/search", protectRoute, adminRoute, searchUsers);
 router.patch("/users/suspend/:userId", protectRoute, adminRoute, suspendUser);
 router.patch("/users/activate/:userId", protectRoute, adminRoute, activateUser);
 router.delete("/users/:userId", protectRoute, adminRoute, deleteUser);
+
+//spot mangement routes
+router.get("/spots", protectRoute, adminRoute, getAllSpots);
 
 export default router;
