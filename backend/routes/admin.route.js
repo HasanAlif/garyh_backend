@@ -13,6 +13,12 @@ import {
   getAllBookingDetails,
   getEarningStats,
   getTransactionDetails,
+  updateAboutUs,
+  updatePrivacyPolicy,
+  updateTermsandConditions,
+  getAboutUs,
+  getPrivacyPolicy,
+  getTermsAndConditions,
 } from "../controller/admin.controller.js";
 import { adminRoute, protectRoute } from "../middleware/auth.middleware.js";
 
@@ -40,5 +46,15 @@ router.get("/all-bookings", protectRoute, adminRoute, getAllBookingDetails);
 // Earning management routes
 router.get("/earning-stats", protectRoute, adminRoute, getEarningStats);
 router.get("/transactions", protectRoute, adminRoute, getTransactionDetails);
+
+// Website content management routes
+router.put("/about-us", protectRoute, adminRoute, updateAboutUs);
+router.put("/privacy-policy", protectRoute, adminRoute, updatePrivacyPolicy);
+router.put("/terms-conditions", protectRoute, adminRoute, updateTermsandConditions);
+
+// Get website content routes (public access)
+router.get("/about-us", getAboutUs);
+router.get("/privacy-policy", getPrivacyPolicy);
+router.get("/terms-conditions", getTermsAndConditions);
 
 export default router;

@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import Booking from "../models/booking.model.js";
 import Land from "../models/land.model.js";
 import Transaction from "../models/transaction.model.js";
+import WebsiteContent from "../models/websiteContent.model.js";
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -973,6 +974,226 @@ export const getTransactionDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching transaction details:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const updateAboutUs = async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== "string" || text.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "About Us text is required and must be a non-empty string",
+      });
+    }
+
+    // Find existing About Us content or create new one
+    let content = await WebsiteContent.findOne({ type: "aboutUs" });
+
+    if (content) {
+      // Update existing content
+      content.text = text.trim();
+      await content.save();
+    } else {
+      // Create new content
+      content = new WebsiteContent({
+        type: "aboutUs",
+        text: text.trim(),
+      });
+      await content.save();
+    }
+
+    res.json({
+      success: true,
+      message: "About Us content updated successfully",
+      data: {
+        type: content.type,
+        text: content.text,
+        updatedAt: content.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating About Us content:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const updatePrivacyPolicy = async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== "string" || text.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Privacy Policy text is required and must be a non-empty string",
+      });
+    }
+
+    let content = await WebsiteContent.findOne({ type: "privacyPolicy" });
+
+    if (content) {
+      content.text = text.trim();
+      await content.save();
+    } else {
+      content = new WebsiteContent({
+        type: "privacyPolicy",
+        text: text.trim(),
+      });
+      await content.save();
+    }
+
+    res.json({
+      success: true,
+      message: "Privacy Policy content updated successfully",
+      data: {
+        type: content.type,
+        text: content.text,
+        updatedAt: content.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating Privacy Policy content:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const updateTermsandConditions = async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== "string" || text.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Terms and Conditions text is required and must be a non-empty string",
+      });
+    }
+
+    let content = await WebsiteContent.findOne({ type: "termsAndConditions" });
+
+    if (content) {
+      content.text = text.trim();
+      await content.save();
+    } else {
+      content = new WebsiteContent({
+        type: "termsAndConditions",
+        text: text.trim(),
+      });
+      await content.save();
+    }
+
+    res.json({
+      success: true,
+      message: "Terms and Conditions content updated successfully",
+      data: {
+        type: content.type,
+        text: content.text,
+        updatedAt: content.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating Terms and Conditions content:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const getAboutUs = async (req, res) => {
+  try {
+    const content = await WebsiteContent.findOne({ type: "aboutUs" });
+
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: "About Us content not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        type: content.type,
+        text: content.text,
+        createdAt: content.createdAt,
+        updatedAt: content.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching About Us content:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const getPrivacyPolicy = async (req, res) => {
+  try {
+    const content = await WebsiteContent.findOne({ type: "privacyPolicy" });
+
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: "Privacy Policy content not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        type: content.type,
+        text: content.text,
+        createdAt: content.createdAt,
+        updatedAt: content.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching Privacy Policy content:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const getTermsAndConditions = async (req, res) => {
+  try {
+    const content = await WebsiteContent.findOne({
+      type: "termsAndConditions",
+    });
+
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: "Terms and Conditions content not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        type: content.type,
+        text: content.text,
+        createdAt: content.createdAt,
+        updatedAt: content.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching Terms and Conditions content:", error);
     res.status(500).json({
       success: false,
       error: error.message,
