@@ -11,6 +11,8 @@ import {
   searchUsers,
   getAllSpots,
   getAllBookingDetails,
+  getEarningStats,
+  getTransactionDetails,
 } from "../controller/admin.controller.js";
 import { adminRoute, protectRoute } from "../middleware/auth.middleware.js";
 
@@ -34,5 +36,9 @@ router.get("/spots", protectRoute, adminRoute, getAllSpots);
 
 //Booking management routes
 router.get("/all-bookings", protectRoute, adminRoute, getAllBookingDetails);
+
+// Earning management routes
+router.get("/earning-stats", protectRoute, adminRoute, getEarningStats);
+router.get("/transactions", protectRoute, adminRoute, getTransactionDetails);
 
 export default router;

@@ -801,7 +801,6 @@ export const getAllSpots = async (req, res) => {
   }
 };
 
-
 export const getAllBookingDetails = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -816,8 +815,8 @@ export const getAllBookingDetails = async (req, res) => {
         select: "spot location price image owner",
         populate: {
           path: "owner",
-          select: "name email"
-        }
+          select: "name email",
+        },
       })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
@@ -825,13 +824,17 @@ export const getAllBookingDetails = async (req, res) => {
 
     const formattedBookings = bookings.map((booking) => ({
       //id: booking._id,
-      travellerName: booking.userId?.name || booking.name || "Unknown Traveller",
+      travellerName:
+        booking.userId?.name || booking.name || "Unknown Traveller",
       spotName: booking.LandId?.spot || "Unknown Spot",
       ownerName: booking.LandId?.owner?.name || "Unknown Owner",
       price: `$${booking.LandId?.price || booking.totalAmount || 0}/night`,
       status: booking.bookingStatus || "Unknown",
       location: booking.LandId?.location || "Unknown Location",
-      spotImage: booking.LandId?.image && booking.LandId.image.length > 0 ? booking.LandId.image[0] : null,
+      spotImage:
+        booking.LandId?.image && booking.LandId.image.length > 0
+          ? booking.LandId.image[0]
+          : null,
       bookingDate: booking.createdAt.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -856,6 +859,120 @@ export const getAllBookingDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching booking details:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const getEarningStats = async (req, res) => {
+  try {
+    const totalEarnings = await Transaction.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: {
+              $divide: ["$platformFeeAmount", 2],
+            },
+          },
+        },
+      },
+    ]);
+    const ownerEarnings = await Transaction.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$ownerAmount" },
+        },
+      },
+    ]);
+
+    res.json({
+      success: true,
+      totalEarnings: totalEarnings[0]?.total || 0,
+      ownerEarnings: ownerEarnings[0]?.total || 0,
+    });
+  } catch (error) {
+    console.error("Error fetching earning stats:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const getTransactionDetails = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const total = await Transaction.countDocuments();
+
+    const transactions = await Transaction.find()
+      .populate("payUser", "name email")
+      .populate("receiveUser", "name email")
+      .populate({
+        path: "bookingId",
+        select: "LandId createdAt",
+        populate: {
+          path: "LandId",
+          select: "spot location image",
+        },
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const formattedTransactions = transactions.map((tx) => ({
+      //id: tx._id,
+      bookingId: tx.bookingId?._id || "Unknown",
+      travellerName: tx.payUser?.name || "Unknown Traveller",
+      spotName: tx.bookingId?.LandId?.spot || "Unknown Spot",
+      ownerName: tx.receiveUser?.name || "Unknown Owner",
+      totalAmount: `$${tx.amount || 0}`,
+      ownerEarnings: `$${tx.ownerAmount || 0}`,
+      platformFee: `$${tx.platformFeeAmount / 2 || 0}`,
+      status: tx.paymentStatus || "Unknown",
+      transactionDate: tx.createdAt.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      spotImage:
+        tx.bookingId?.LandId?.image && tx.bookingId.LandId.image.length > 0
+          ? tx.bookingId.LandId.image[0]
+          : null,
+      location: tx.bookingId?.LandId?.location || "Unknown Location",
+      bookingDate: tx.bookingId?.createdAt
+        ? tx.bookingId.createdAt.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "Unknown Date",
+    }));
+
+    res.json({
+      success: true,
+      totalTransactions: total,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+        limit: parseInt(limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
+      },
+      transactions: formattedTransactions,
+    });
+  } catch (error) {
+    console.error("Error fetching transaction details:", error);
     res.status(500).json({
       success: false,
       error: error.message,
