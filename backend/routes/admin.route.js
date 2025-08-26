@@ -10,6 +10,7 @@ import {
   deleteUser,
   searchUsers,
   getAllSpots,
+  getAllBookingDetails,
 } from "../controller/admin.controller.js";
 import { adminRoute, protectRoute } from "../middleware/auth.middleware.js";
 
@@ -30,5 +31,8 @@ router.delete("/users/:userId", protectRoute, adminRoute, deleteUser);
 
 //spot mangement routes
 router.get("/spots", protectRoute, adminRoute, getAllSpots);
+
+//Booking management routes
+router.get("/all-bookings", protectRoute, adminRoute, getAllBookingDetails);
 
 export default router;

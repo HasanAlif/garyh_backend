@@ -800,3 +800,65 @@ export const getAllSpots = async (req, res) => {
     });
   }
 };
+
+
+export const getAllBookingDetails = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const total = await Booking.countDocuments();
+
+    const bookings = await Booking.find()
+      .populate("userId", "name email")
+      .populate({
+        path: "LandId",
+        select: "spot location price image owner",
+        populate: {
+          path: "owner",
+          select: "name email"
+        }
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const formattedBookings = bookings.map((booking) => ({
+      //id: booking._id,
+      travellerName: booking.userId?.name || booking.name || "Unknown Traveller",
+      spotName: booking.LandId?.spot || "Unknown Spot",
+      ownerName: booking.LandId?.owner?.name || "Unknown Owner",
+      price: `$${booking.LandId?.price || booking.totalAmount || 0}/night`,
+      status: booking.bookingStatus || "Unknown",
+      location: booking.LandId?.location || "Unknown Location",
+      spotImage: booking.LandId?.image && booking.LandId.image.length > 0 ? booking.LandId.image[0] : null,
+      bookingDate: booking.createdAt.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    }));
+
+    res.json({
+      success: true,
+      totalBookings: total,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+        limit: parseInt(limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
+      },
+      bookings: formattedBookings,
+    });
+  } catch (error) {
+    console.error("Error fetching booking details:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
