@@ -21,9 +21,28 @@ import {
   getTermsAndConditions,
 } from "../controller/admin.controller.js";
 import { adminRoute, protectRoute } from "../middleware/auth.middleware.js";
+import {
+  forgotPassword,
+  Login,
+  Logout,
+  resendPasswordResetCode,
+  resetPassword,
+  updatePassword,
+  updateProfile,
+  verifyResetCode,
+} from "../controller/auth.controller.js";
 
 const router = express.Router();
 
+//Admin Auth routes
+router.post("/login", Login);
+router.post("/logout", Logout);
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-reset-code", verifyResetCode);
+router.post("/reset-password", resetPassword);
+router.post("/resend-password-reset-code", resendPasswordResetCode);
+
+// Admin dashboard routes
 router.get("/dashboard-stats", protectRoute, adminRoute, getDashboardStats);
 router.get("/booking-stats", protectRoute, adminRoute, getBookingStats);
 router.get("/recent-activities", protectRoute, adminRoute, getRecentActivities);
@@ -50,11 +69,20 @@ router.get("/transactions", protectRoute, adminRoute, getTransactionDetails);
 // Website content management routes
 router.put("/about-us", protectRoute, adminRoute, updateAboutUs);
 router.put("/privacy-policy", protectRoute, adminRoute, updatePrivacyPolicy);
-router.put("/terms-conditions", protectRoute, adminRoute, updateTermsandConditions);
+router.put(
+  "/terms-conditions",
+  protectRoute,
+  adminRoute,
+  updateTermsandConditions
+);
 
 // Get website content routes (public access)
 router.get("/about-us", getAboutUs);
 router.get("/privacy-policy", getPrivacyPolicy);
 router.get("/terms-conditions", getTermsAndConditions);
+
+//Edit Profile
+router.put("/change-password", protectRoute, adminRoute, updatePassword);
+router.patch("/update-profile", protectRoute, adminRoute, updateProfile);
 
 export default router;
