@@ -22,8 +22,8 @@ router.delete("/deleteland/:id", protectRoute, landOwnerRoute, deleteLand);
 
 // Filter lands using query parameters
 router.get("/land-details/:id", protectRoute, getLandDetails);
-router.get("/filter", protectRoute, filterLands);
-router.get("/search", protectRoute, searchByLocation);
+router.get("/filter", filterLands);
+router.get("/search", searchByLocation);
 router.get("/search-filter", searchAndFilterLands);
 router.get("/feature-lands", protectRoute, landOwnerRoute, getLandOwnerFeatured);
 

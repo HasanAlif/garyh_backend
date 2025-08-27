@@ -17,14 +17,10 @@ const router = express.Router();
 router.post("/checkout/:bookingId", protectRoute, createCheckoutSession);
 router.get("/session/:sessionId", protectRoute, getSessionStatus);
 
-// Success handler (no auth) to mark booking paid; triggered by Stripe success redirect
 router.get("/success", stripeSuccessAndUpdate);
 
-// Stripe Connect account management for land owners
-// Landowner payout account: set Stripe Connect account ID (provided by landowner via website)
 router.post("/connect/set", protectRoute, landOwnerRoute, setOwnerStripeAccountId);
 
-// Transactions history for current user
 router.get("/transactions/mine", protectRoute, getMyTransactions);
 
 // Bank account management routes (Stripe Express onboarding only)

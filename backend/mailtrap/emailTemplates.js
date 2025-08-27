@@ -19,7 +19,7 @@ export const VERIFICATION_EMAIL_TEMPLATE = `
     <p>Enter this code on the verification page to complete your registration.</p>
     <p>This code will expire in 15 minutes for security reasons.</p>
     <p>If you didn't create an account with us, please ignore this email.</p>
-    <p>Best regards,<br>Your App Team</p>
+    <p>Best regards,<br>RVnBo.com Team</p>
   </div>
   <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
     <p>This is an automated message, please do not reply to this email.</p>
@@ -56,7 +56,7 @@ export const PASSWORD_RESET_SUCCESS_TEMPLATE = `
       <li>Avoid using the same password across multiple sites</li>
     </ul>
     <p>Thank you for helping us keep your account secure.</p>
-    <p>Best regards,<br>Your App Team</p>
+    <p>Best regards,<br>RVnBo.com Team</p>
   </div>
   <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
     <p>This is an automated message, please do not reply to this email.</p>
@@ -177,3 +177,61 @@ export const BOOKING_VERIFICATION_CODE = `
 </html>
 
 `;
+
+export const WELCOME_USER_MAIL = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Welcome to RVnBO.com</title>
+</head>
+<body style="margin:0; padding:0; font-family: Arial, sans-serif; background-color:#f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4; padding:30px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+          <tr>
+            <td align="center" style="background:linear-gradient(135deg, #4CAF50, #4CAF50); padding:30px;">
+              <h1 style="color:#ffffff; margin:0; font-size:28px;">Dear {User}, Welcome to RVnBO.com!</h1>
+              <p style="color:#dce6f5; margin:10px 0 0; font-size:16px;">Your journey starts here</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px;">
+              <h2 style="color:#333; margin-top:0;">Hello, Explorer! 🌎</h2>
+              <p style="color:#555; font-size:16px; line-height:1.6;">
+                Thank you for joining <strong>RVnBO.com</strong> — the easiest way to find and book RV van parking spots on your adventures.  
+              </p>
+              <p style="color:#555; font-size:16px; line-height:1.6;">
+                Whether you're planning a weekend getaway or a cross-country road trip, we’ve got the perfect spots for you to park, rest, and recharge.  
+              </p>
+              <div style="text-align:center; margin:30px 0;">
+                <a href="https://rvnbo.com/login" 
+                   style="background:#4CAF50; color:#ffffff; text-decoration:none; font-size:16px; padding:14px 30px; border-radius:8px; display:inline-block;">
+                   Start Exploring
+                </a>
+              </div>
+
+              <p style="color:#555; font-size:15px; line-height:1.6; text-align:center;">
+                We’re excited to be part of your journey. Safe travels and happy parking! 🚐✨
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f9f9f9; padding:20px; text-align:center; font-size:13px; color:#999;">
+              <p style="margin:0;">&copy; 2025 RVnBO.com. All rights reserved.</p>
+              <p style="margin:5px 0 0;">123 Adventure Road, Wanderlust City, USA</p>
+              <p style="margin:5px 0 0;">
+                <a href="https://rvnbo.com/privacy" style="color:#4CAF50; text-decoration:none;">Privacy Policy</a> | 
+                <a href="https://rvnbo.com/terms" style="color:#4CAF50; text-decoration:none;">Terms of Service</a>
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`

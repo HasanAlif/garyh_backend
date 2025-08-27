@@ -5,8 +5,6 @@ import { protectRoute } from "../middleware/auth.middleware.js";
 import {
   addRating,
   getLandRatings,
-  //   updateRating,
-  //   removeRating,
   getAvailableLand,
   getAllLands,
 } from "../controller/land.controller.js";
@@ -18,8 +16,6 @@ import {
 
 router.post("/rating/:id", protectRoute, addRating);
 router.get("/rating/:id", getLandRatings);
-// router.put("/rating/:id", protectRoute, updateRating);
-// router.delete("/rating/:id", protectRoute, removeRating);
 
 router.get("/available-lands", protectRoute, getAvailableLand);
 router.get("/all-lands", getAllLands);

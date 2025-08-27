@@ -669,83 +669,6 @@ export const getLandRatings = async (req, res) => {
   }
 };
 
-// export const updateRating = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { rating, review } = req.body;
-//     const userId = req.user._id;
-
-//     if (review && review.length > 500) {
-//       return res.status(400).json({
-//         message: "Review must be less than 500 characters"
-//       });
-//     }
-
-//     const land = await Land.findById(id);
-//     if (!land) {
-//       return res.status(404).json({ message: "Land not found" });
-//     }
-
-//     const existingRating = land.ratingsAndReviews.find(
-//       (item) => item.user.toString() === userId.toString()
-//     );
-
-//     if (!existingRating) {
-//       return res.status(404).json({
-//         message: "You haven't rated this land yet"
-//       });
-//     }
-
-//     await land.addRatingAndReview(userId, rating, review || '');
-//     await land.populate('ratingsAndReviews.user', 'name email');
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Rating and review updated successfully",
-//       averageRating: land.averageRating,
-//       totalRatings: land.totalRatings,
-//       ratingsAndReviews: land.ratingsAndReviews,
-//     });
-//   } catch (error) {
-//     console.error("Error updating rating and review:", error);
-//     res.status(500).json({ message: "Server Error", error: error.message });
-//   }
-// };
-
-// export const removeRating = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userId = req.user._id;
-
-//     const land = await Land.findById(id);
-//     if (!land) {
-//       return res.status(404).json({ message: "Land not found" });
-//     }
-
-//     const existingRating = land.ratingsAndReviews.find(
-//       (item) => item.user.toString() === userId.toString()
-//     );
-
-//     if (!existingRating) {
-//       return res.status(404).json({
-//         message: "You haven't rated this land"
-//       });
-//     }
-
-//     await land.removeRatingAndReview(userId);
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Rating and review removed successfully",
-//       averageRating: land.averageRating,
-//       totalRatings: land.totalRatings,
-//     });
-//   } catch (error) {
-//     console.error("Error removing rating and review:", error);
-//     res.status(500).json({ message: "Server Error", error: error.message });
-//   }
-// };
-
 export const filterLands = async (req, res) => {
   try {
     const {
@@ -1062,7 +985,7 @@ export const updateLandAvailability = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     const allBookings = await Booking.find({
-      bookingStatus: { $in: ["confirmed", "completed"] },
+      bookingStatus: { $in: ["completed"] },
     });
 
     const activeLandIds = [];

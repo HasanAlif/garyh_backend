@@ -3,6 +3,7 @@ import {
   PASSWORD_RESET_REQUEST_TEMPLATE,
   VERIFICATION_EMAIL_TEMPLATE,
   PASSWORD_RESET_SUCCESS_TEMPLATE,
+  WELCOME_USER_MAIL,
 } from "./emailTemplates.js";
 
 export const sendVerificationEmail = async (email, verificationToken) => {
@@ -35,10 +36,7 @@ export const sendWelcomeEmail = async (email, name) => {
       from: sender,
       to: recipient,
       subject: "Welcome to RVnBo.com",
-      html: `<p>Dear ${name},</p>
-                 <p>Welcome to RVnBo.com! We are thrilled to have you on board.</p>
-                 <p>Thank you for joining us!</p>
-                 <p>Best regards,<br>The RVnBo Team</p>`,
+      html: WELCOME_USER_MAIL.replace("{User}", name),
       template_variables: {
         company_info_name: "RVnBo.com",
         name: name,
