@@ -427,7 +427,91 @@ export const updateLand = async (req, res) => {
       }
     }
 
-    if (image !== undefined) updateData.image = image;
+    // Handle image updates with Cloudinary upload
+    if (image !== undefined) {
+      let uploadedImages = [...(existingLand.image || [])]; // Keep existing images
+
+      if (image) {
+        const newImages = Array.isArray(image) ? image : [image];
+        const validImages = newImages.filter((img) => img && img.trim() !== "");
+
+        if (validImages.length > 0) {
+          try {
+            // First priority: Try Cloudinary upload
+            console.log("Attempting Cloudinary upload for update...");
+
+            for (const img of validImages) {
+              try {
+                if (img.startsWith("data:image/") || img.startsWith("data:")) {
+                  const cloudinaryResponse = await cloudinary.uploader.upload(
+                    img,
+                    {
+                      folder: "land_images",
+                      transformation: [
+                        { width: 800, height: 600, crop: "limit" },
+                        { quality: "auto" },
+                        { format: "auto" },
+                      ],
+                    }
+                  );
+                  uploadedImages.push(cloudinaryResponse.secure_url);
+                  console.log("Cloudinary upload successful for new image");
+                } else {
+                  // If it's already a URL, keep it as is (existing image)
+                  if (!uploadedImages.includes(img)) {
+                    uploadedImages.push(img);
+                  }
+                }
+              } catch (cloudinaryError) {
+                console.error(
+                  "Cloudinary upload failed for image:",
+                  cloudinaryError.message
+                );
+                throw cloudinaryError;
+              }
+            }
+          } catch (cloudinaryError) {
+            console.error(
+              "Cloudinary upload failed, attempting local upload fallback..."
+            );
+
+            try {
+              // Fallback: Use local upload function for new images only
+              const base64Images = validImages.filter(
+                (img) =>
+                  img.startsWith("data:image/") || img.startsWith("data:")
+              );
+
+              if (base64Images.length > 0) {
+                const localUploadUrls = await uploadImages(base64Images);
+                uploadedImages.push(...localUploadUrls);
+                console.log("Local upload successful as fallback");
+              }
+
+              // Keep existing URL images
+              const existingUrls = validImages.filter(
+                (img) =>
+                  !img.startsWith("data:image/") && !img.startsWith("data:")
+              );
+              existingUrls.forEach((url) => {
+                if (!uploadedImages.includes(url)) {
+                  uploadedImages.push(url);
+                }
+              });
+            } catch (localError) {
+              console.error(
+                "Both Cloudinary and local upload failed:",
+                localError
+              );
+              // If upload fails, keep the existing images and don't add new ones
+            }
+          }
+        }
+      }
+
+      updateData.image = uploadedImages;
+    }
+
     if (spot !== undefined) updateData.spot = spot;
     if (description !== undefined) updateData.description = description;
     if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
