@@ -1,5 +1,6 @@
 ﻿import cloudinary from "../lib/cloudinary.js";
 import Land from "../models/land.model.js";
+import Booking from "../models/booking.model.js";
 import StripeAccount from "../models/stripeAccount.model.js";
 import { stripe } from "../lib/stripe.js";
 import fs from "fs";
@@ -1052,4 +1053,63 @@ export const getLandOwnerFeatured = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+export const updateLandAvailability = async (req, res) => {
+  try {
+    console.log("=== LAND AVAILABILITY UPDATE STARTED ===");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const allBookings = await Booking.find({
+      bookingStatus: { $in: ["confirmed", "completed"] },
+    });
+
+    const activeLandIds = [];
+
+    allBookings.forEach((booking, index) => {
+      const checkIn = new Date(booking.checkIn);
+      const checkOut = new Date(booking.checkOut);
+
+      const isTodayInRange = checkIn <= today && checkOut >= today;
+
+      if (isTodayInRange) {
+        activeLandIds.push(booking.LandId);
+      }
+    });
+
+    await Land.updateMany({}, { isAvailable: true });
+
+    if (activeLandIds.length > 0) {
+      await Land.updateMany(
+        { _id: { $in: activeLandIds } },
+        { isAvailable: false }
+      );
+      console.log(`Set ${activeLandIds.length} lands to unavailable`);
+    }
+
+    return {
+      success: true,
+      totalBookingsChecked: allBookings.length,
+      landsUnavailable: activeLandIds.length,
+      unavailableLandIds: activeLandIds,
+    };
+  } catch (error) {
+    console.error("Error updating land availability:", error);
+    throw error;
+  }
+};
+
+export const startLandAvailabilityAutomation = () => {
+  console.log("Starting land availability automation...");
+
+  updateLandAvailability();
+
+  const intervalId = setInterval(() => {
+    console.log("Running scheduled land availability update...");
+    updateLandAvailability();
+  }, 300000);
+
+  console.log("Land availability automation will run every 5 minutes");
+  return intervalId;
 };

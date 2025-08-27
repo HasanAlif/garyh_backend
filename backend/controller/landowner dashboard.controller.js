@@ -45,11 +45,14 @@ export const AllBookingLand = async (req, res) => {
         month: "short",
         day: "numeric",
       });
+      const currentYear = checkOut.getFullYear();
 
       return {
+        travelerId: booking.userId?._id || "Unknown",
         travelerName: booking.userId?.name || "Unknown",
         spotName: booking.LandId?.spot || "Unknown",
         bookingDateRange: `${checkInFormatted} - ${checkOutFormatted}`,
+        bookingYear: currentYear,
       };
     });
 

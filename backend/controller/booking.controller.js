@@ -70,7 +70,20 @@ export const bookingLand = async (req, res) => {
       });
     }
 
-    // Check for existing booking conflicts for the same user and land
+    const land = await Land.findById(id);
+    if (!land) {
+      return res.status(404).json({
+        error: "Land not found",
+      });
+    }
+
+    if (!land.isAvailable) {
+      return res.status(400).json({
+        error:
+          "Land is already booked by someone. Please choose different dates or another land.",
+      });
+    }
+
     const existingBooking = await Booking.findOne({
       userId,
       LandId: id,
@@ -98,14 +111,34 @@ export const bookingLand = async (req, res) => {
       });
     }
 
-    const verificationCode = crypto.randomInt(100000, 999999).toString();
+    // Additional check for any booking conflicts with other users during the same dates
+    const conflictingBooking = await Booking.findOne({
+      LandId: id,
+      $or: [
+        {
+          checkIn: { $lte: checkInDate },
+          checkOut: { $gt: checkInDate },
+        },
+        {
+          checkIn: { $lt: checkOutDate },
+          checkOut: { $gte: checkOutDate },
+        },
+        {
+          checkIn: { $gte: checkInDate },
+          checkOut: { $lte: checkOutDate },
+        },
+      ],
+      bookingStatus: { $in: ["confirmed", "pending", "completed"] },
+    });
 
-    const land = await Land.findById(id);
-    if (!land) {
-      return res.status(404).json({
-        error: "Land not found",
+    if (conflictingBooking) {
+      return res.status(400).json({
+        error:
+          "Land is already booked by someone for the selected dates. Please choose different dates.",
       });
     }
+
+    const verificationCode = crypto.randomInt(100000, 999999).toString();
 
     // Calculate number of nights and total amount (price per night * nights)
     const MS_PER_DAY = 24 * 60 * 60 * 1000;
