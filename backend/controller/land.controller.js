@@ -565,7 +565,7 @@ export const getLandDetails = async (req, res) => {
 
     const land = await Land.findById(id)
       .populate("owner", "name email")
-      .populate("ratingsAndReviews.user", "name email");
+      .populate("ratingsAndReviews.user", "name email image");
 
     if (!land) {
       return res.status(404).json({ message: "Land not found" });
@@ -622,7 +622,7 @@ export const addRating = async (req, res) => {
 
     await land.addRatingAndReview(userId, rating, review || "");
 
-    await land.populate("ratingsAndReviews.user", "name email");
+    await land.populate("ratingsAndReviews.user", "name email image");
 
     res.status(200).json({
       success: true,
@@ -642,7 +642,7 @@ export const getLandRatings = async (req, res) => {
     const { id } = req.params;
 
     const land = await Land.findById(id)
-      .populate("ratingsAndReviews.user", "name email")
+      .populate("ratingsAndReviews.user", "name email image")
       .select("ratingsAndReviews averageRating totalRatings location spot");
 
     if (!land) {

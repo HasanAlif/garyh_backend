@@ -77,14 +77,8 @@ export const bookingLand = async (req, res) => {
       });
     }
 
-    if (!land.isAvailable) {
-      return res.status(400).json({
-        error:
-          "Land is already booked by someone. Please choose different dates or another land.",
-      });
-    }
-
-    const existingBooking = await Booking.findOne({
+    // Check for existing booking conflicts for the same user and land
+    const existingUserBooking = await Booking.findOne({
       userId,
       LandId: id,
       $or: [
@@ -101,31 +95,39 @@ export const bookingLand = async (req, res) => {
           checkOut: { $lte: checkOutDate },
         },
       ],
-      bookingStatus: { $nin: ["cancelled", "completed"] },
+      bookingStatus: { $nin: ["cancelled"] },
     });
 
-    if (existingBooking) {
+    if (existingUserBooking) {
       return res.status(400).json({
         error:
           "You already have a booking for this land during the selected dates. Please choose different dates.",
       });
     }
 
-    // Additional check for any booking conflicts with other users during the same dates
+    // Check for any booking conflicts with any users during the requested dates
     const conflictingBooking = await Booking.findOne({
       LandId: id,
       $or: [
         {
+          // New booking starts during existing booking
           checkIn: { $lte: checkInDate },
           checkOut: { $gt: checkInDate },
         },
         {
+          // New booking ends during existing booking
           checkIn: { $lt: checkOutDate },
           checkOut: { $gte: checkOutDate },
         },
         {
+          // New booking completely covers existing booking
           checkIn: { $gte: checkInDate },
           checkOut: { $lte: checkOutDate },
+        },
+        {
+          // Existing booking completely covers new booking
+          checkIn: { $lte: checkInDate },
+          checkOut: { $gte: checkOutDate },
         },
       ],
       bookingStatus: { $in: ["confirmed", "pending", "completed"] },
@@ -336,7 +338,8 @@ export const verifyBooking = async (req, res) => {
         userId: String(booking.userId),
         landId: String(booking.LandId),
       },
-      success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${"http://localhost:5173/"}`,
+      //success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${
         process.env.FRONTEND_URL || "http://localhost:5173"
       }/payment-cancelled`,

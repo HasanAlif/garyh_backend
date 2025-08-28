@@ -98,7 +98,8 @@ export const createCheckoutSession = async (req, res) => {
         applicationFeeAmount: applicationFeeAmount,
         ownerAmount: amountInCents - applicationFeeAmount
       },
-      success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${"http://localhost:5173/"}`,
+      //success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${
         process.env.FRONTEND_URL || "http://localhost:5173"
       }/payment-cancelled`,
