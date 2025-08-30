@@ -62,6 +62,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now,
+    },
     // Bank account fields (masked for security)
     bank_name: {
       type: String,
