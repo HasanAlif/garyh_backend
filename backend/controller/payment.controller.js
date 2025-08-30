@@ -37,14 +37,8 @@ export const createCheckoutSession = async (req, res) => {
     );
 
     // Require a landowner Stripe Connect account to route funds (97% to owner, 3% platform)
-    const ownerStripeAccount = land.owner?./* The above code is a comment in JavaScript. It is not
-    performing any specific action in the code, but it is
-    used to provide information or explanations about the
-    code for developers who may be reading it. The text
-    "stripeAccountId" is not a valid JavaScript syntax, so it
-    is likely just a placeholder or example text within the
-    comment. */
-    stripeAccountId || null;
+    const ownerStripeAccount =
+      land.owner?.stripeAccountId || null;
     if (!ownerStripeAccount) {
       return res.status(400).json({
         message:
@@ -96,18 +90,16 @@ export const createCheckoutSession = async (req, res) => {
         landId: landIdStr,
         ownerStripeAccountId: ownerStripeAccount,
         applicationFeeAmount: applicationFeeAmount,
-        ownerAmount: amountInCents - applicationFeeAmount
+        ownerAmount: amountInCents - applicationFeeAmount,
       },
-      success_url: `${"http://localhost:5173/"}`,
-      //success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      //http://10.10.20.29:5173/booking-confirm
+      //success_url: `${"http://localhost:5173/"}`,
+      success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${
         process.env.FRONTEND_URL || "http://localhost:5173"
       }/payment-cancelled`,
     };
 
-    // Collect payment directly to platform account
-    // We'll handle the transfer to the landowner after successful payment
-    // This ensures platform fees are in available balance, not just incoming
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
@@ -117,9 +109,9 @@ export const createCheckoutSession = async (req, res) => {
     await booking.save();
 
     // Store payment metadata for use after successful payment
-    return res.status(200).json({ 
-      url: session.url, 
-      sessionId: session.id 
+    return res.status(200).json({
+      url: session.url,
+      sessionId: session.id,
     });
   } catch (err) {
     console.error("createCheckoutSession error", err);
@@ -170,10 +162,10 @@ export const stripeSuccessAndUpdate = async (req, res) => {
     }
 
     // Get the full payment details from Stripe
-    const paymentIntent = session.payment_intent ? 
-      await stripe.paymentIntents.retrieve(session.payment_intent) : 
-      null;
-    
+    const paymentIntent = session.payment_intent
+      ? await stripe.paymentIntents.retrieve(session.payment_intent)
+      : null;
+
     // Calculate payment amounts
     const land = await Land.findById(booking.LandId).populate("owner");
     if (!land) {
@@ -183,9 +175,12 @@ export const stripeSuccessAndUpdate = async (req, res) => {
     const price = session.amount_total / 100; // Amount in currency units from the successful payment
     const currency = session.currency || "usd";
     const amountInCents = session.amount_total;
-    const applicationFeeAmount = Math.round((amountInCents * PLATFORM_FEE_PERCENT) / 100);
+    const applicationFeeAmount = Math.round(
+      (amountInCents * PLATFORM_FEE_PERCENT) / 100
+    );
     const ownerAmount = amountInCents - applicationFeeAmount;
-    const ownerStripeAccountId = land.owner?.stripeAccountId || session.metadata?.ownerStripeAccountId;
+    const ownerStripeAccountId =
+      land.owner?.stripeAccountId || session.metadata?.ownerStripeAccountId;
 
     // Update booking with payment details
     booking.totalAmount = price;
@@ -197,11 +192,11 @@ export const stripeSuccessAndUpdate = async (req, res) => {
     booking.paymentId = session.payment_intent || session.id;
     booking.stripePaymentIntentId = session.payment_intent || null;
     booking.bookingStatus = "completed";
-    
+
     // After successful payment, transfer the owner's portion to their Stripe account
     let transferId = null;
     let transferError = null;
-    
+
     try {
       if (ownerStripeAccountId) {
         // Create a transfer to the connected account
@@ -213,11 +208,11 @@ export const stripeSuccessAndUpdate = async (req, res) => {
           metadata: {
             bookingId: String(booking._id),
             userId: String(booking.userId),
-            landId: String(booking.LandId)
+            landId: String(booking.LandId),
           },
-          description: `Transfer for booking ${booking._id}`
+          description: `Transfer for booking ${booking._id}`,
         });
-        
+
         transferId = transfer.id;
         booking.stripeTransferId = transfer.id;
         console.log(`Transfer completed: ${transfer.id}`);
@@ -227,7 +222,7 @@ export const stripeSuccessAndUpdate = async (req, res) => {
       transferError = e.message;
       booking.transferError = e.message;
     }
-    
+
     await booking.save();
 
     // Create transaction record
@@ -259,7 +254,7 @@ export const stripeSuccessAndUpdate = async (req, res) => {
       success: true,
       bookingId: booking._id,
       paymentStatus: session.payment_status,
-      amount_total: session.amount_total,
+      amount_total: session.amount_total / 100, // Convert cents to dollars
     });
   } catch (err) {
     console.error("stripeSuccessAndUpdate error", err);
@@ -294,15 +289,21 @@ export const stripeWebhook = async (req, res) => {
           if (booking) {
             // Calculate payment amounts if not already calculated
             if (!booking.isPaid) {
-              const land = await Land.findById(booking.LandId).populate("owner");
+              const land = await Land.findById(booking.LandId).populate(
+                "owner"
+              );
               if (land) {
                 const price = session.amount_total / 100;
                 const currency = session.currency || "usd";
                 const amountInCents = session.amount_total;
-                const applicationFeeAmount = Math.round((amountInCents * PLATFORM_FEE_PERCENT) / 100);
+                const applicationFeeAmount = Math.round(
+                  (amountInCents * PLATFORM_FEE_PERCENT) / 100
+                );
                 const ownerAmount = amountInCents - applicationFeeAmount;
-                const ownerStripeAccountId = land.owner?.stripeAccountId || session.metadata?.ownerStripeAccountId;
-                
+                const ownerStripeAccountId =
+                  land.owner?.stripeAccountId ||
+                  session.metadata?.ownerStripeAccountId;
+
                 booking.totalAmount = price;
                 booking.platformFeeAmount = applicationFeeAmount / 100;
                 booking.ownerAmount = ownerAmount / 100;
@@ -312,11 +313,11 @@ export const stripeWebhook = async (req, res) => {
                 booking.paymentId = session.payment_intent || session.id;
                 booking.stripePaymentIntentId = session.payment_intent || null;
                 booking.bookingStatus = "completed";
-                
+
                 // After successful payment, transfer the owner's portion
                 let transferId = null;
                 let transferError = null;
-                
+
                 try {
                   if (ownerStripeAccountId) {
                     // Create a transfer to the connected account
@@ -328,11 +329,11 @@ export const stripeWebhook = async (req, res) => {
                       metadata: {
                         bookingId: String(booking._id),
                         userId: String(booking.userId),
-                        landId: String(booking.LandId)
+                        landId: String(booking.LandId),
                       },
-                      description: `Transfer for booking ${booking._id}`
+                      description: `Transfer for booking ${booking._id}`,
                     });
-                    
+
                     transferId = transfer.id;
                     booking.stripeTransferId = transfer.id;
                     console.log(`Webhook transfer completed: ${transfer.id}`);
@@ -342,9 +343,9 @@ export const stripeWebhook = async (req, res) => {
                   transferError = e.message;
                   booking.transferError = e.message;
                 }
-                
+
                 await booking.save();
-                
+
                 // Create transaction record
                 try {
                   const receiveUser = land?.owner;
@@ -359,11 +360,14 @@ export const stripeWebhook = async (req, res) => {
                     ownerAmount: booking.ownerAmount || 0,
                     currency: booking.currency || "usd",
                     paymentMethod: "Stripe",
-                    transactionId: booking.stripePaymentIntentId || booking.paymentId,
+                    transactionId:
+                      booking.stripePaymentIntentId || booking.paymentId,
                     stripeSessionId: booking.stripeSessionId,
                     transferId: transferId,
                     transferError: transferError,
-                    paymentStatus: transferError ? "platform_paid_only" : "Completed",
+                    paymentStatus: transferError
+                      ? "platform_paid_only"
+                      : "Completed",
                   });
                 } catch (e) {
                   console.error("Transaction create error in webhook", e);
@@ -556,12 +560,10 @@ export const saveStripeAccount = async (req, res) => {
     const stripeAccount = await stripe.accounts.retrieve(accountId);
 
     if (!stripeAccount.details_submitted) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Onboarding not completed. Please complete all required information in Stripe.",
-        });
+      return res.status(400).json({
+        message:
+          "Onboarding not completed. Please complete all required information in Stripe.",
+      });
     }
 
     const individual = stripeAccount?.individual;
@@ -639,11 +641,9 @@ export const updateStripeAccount = async (req, res) => {
     }
 
     if (user.role !== "landowner") {
-      return res
-        .status(403)
-        .json({
-          message: "Only landowners can update bank account information",
-        });
+      return res.status(403).json({
+        message: "Only landowners can update bank account information",
+      });
     }
 
     const stripeAccount = await stripe.accounts.retrieve(accountId);

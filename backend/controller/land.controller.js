@@ -985,7 +985,7 @@ export const updateLandAvailability = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     const allBookings = await Booking.find({
-      bookingStatus: { $in: ["completed"] },
+      bookingStatus: "completed",
     });
 
     const activeLandIds = [];
@@ -993,30 +993,47 @@ export const updateLandAvailability = async (req, res) => {
     allBookings.forEach((booking, index) => {
       const checkIn = new Date(booking.checkIn);
       const checkOut = new Date(booking.checkOut);
+      
+      checkIn.setHours(0, 0, 0, 0);
+      checkOut.setHours(23, 59, 59, 999);
 
-      const isTodayInRange = checkIn <= today && checkOut >= today;
-
-      if (isTodayInRange) {
+      // Only check if TODAY falls within the booking period
+      const isTodayInBookingRange = checkIn <= today && checkOut >= today;
+      
+      if (isTodayInBookingRange) {
         activeLandIds.push(booking.LandId);
       }
     });
 
+    // First set all lands to available
     await Land.updateMany({}, { isAvailable: true });
+    console.log("Set all lands to available initially");
 
     if (activeLandIds.length > 0) {
+      // Remove duplicates
+      const uniqueLandIds = [...new Set(activeLandIds)];
+      
       await Land.updateMany(
-        { _id: { $in: activeLandIds } },
+        { _id: { $in: uniqueLandIds } },
         { isAvailable: false }
       );
-      console.log(`Set ${activeLandIds.length} lands to unavailable`);
+      console.log(`Set ${uniqueLandIds.length} lands to unavailable due to active bookings`);
     }
 
-    return {
+    const result = {
       success: true,
       totalBookingsChecked: allBookings.length,
-      landsUnavailable: activeLandIds.length,
-      unavailableLandIds: activeLandIds,
+      landsUnavailable: activeLandIds.length > 0 ? [...new Set(activeLandIds)].length : 0,
+      unavailableLandIds: activeLandIds.length > 0 ? [...new Set(activeLandIds)] : [],
     };
+
+    console.log("=== LAND AVAILABILITY UPDATE COMPLETED ===", result);
+
+    if (res) {
+      return res.status(200).json(result);
+    }
+    
+    return result;
   } catch (error) {
     console.error("Error updating land availability:", error);
     throw error;

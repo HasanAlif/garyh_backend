@@ -101,7 +101,7 @@ export const bookingLand = async (req, res) => {
     if (existingUserBooking) {
       return res.status(400).json({
         error:
-          "You already have a booking for this land during the selected dates. Please choose different dates.",
+          "You already have a booking for this land during the selected dates. Please choose different dates Or try after Sometimes",
       });
     }
 
@@ -271,7 +271,7 @@ export const verifyBooking = async (req, res) => {
 
     booking.isVerified = true;
     booking.verificationCode = null;
-    booking.bookingStatus = "confirmed";
+    //booking.bookingStatus = "confirmed";
 
     const land = await Land.findById(booking.LandId).populate("owner");
     if (!land) {
@@ -338,8 +338,8 @@ export const verifyBooking = async (req, res) => {
         userId: String(booking.userId),
         landId: String(booking.LandId),
       },
-      success_url: `${"http://localhost:5173/"}`,
-      //success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      //success_url: `${"http://localhost:5173/"}`,
+      success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${
         process.env.FRONTEND_URL || "http://localhost:5173"
       }/payment-cancelled`,
@@ -440,14 +440,20 @@ export const getUserBookings = async (req, res) => {
       bookings: bookings.map((booking) => ({
         id: booking._id,
         land: booking.LandId,
-        checkIn: booking.checkIn,
-        checkOut: booking.checkOut,
+        checkIn: booking.checkIn.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }),
+        checkOut: booking.checkOut.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }),
         bookingDate: booking.createdAt.toLocaleDateString("en-US", {
           year: "numeric",
           month: "short",
           day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
         }),
         spot: booking.LandId?.spot || booking.LandId?.name || "Unknown Spot",
         image:
