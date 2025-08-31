@@ -98,7 +98,7 @@ export const getMessages = async (req, res) => {
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-    });
+    }).sort({ createdAt: -1 }); // Sort by creation time descending
 
     res.status(200).json({ success: true, data: messages });
   } catch (error) {
@@ -130,11 +130,11 @@ export const sendMessage = async (req, res) => {
 
     await newMessage.save();
 
-    //real-time messaging logic here
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
-    }
+    // TODO: Implement real-time messaging with socket.io
+    // const receiverSocketId = getReceiverSocketId(receiverId);
+    // if (receiverSocketId) {
+    //   io.to(receiverSocketId).emit("newMessage", newMessage);
+    // }
 
     res.status(201).json({ success: true, data: newMessage });
   } catch (error) {

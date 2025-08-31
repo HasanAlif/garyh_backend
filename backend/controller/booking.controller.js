@@ -419,7 +419,7 @@ export const getUserBookings = async (req, res) => {
     const userId = req.user._id;
 
     const bookings = await Booking.find({ userId })
-      .populate("LandId", "name location spot images pricePerNight")
+      .populate("LandId", "spot location image price")
       .sort({ createdAt: -1 });
 
     const totalBookings = bookings.length;
@@ -455,11 +455,11 @@ export const getUserBookings = async (req, res) => {
           month: "short",
           day: "numeric",
         }),
-        spot: booking.LandId?.spot || booking.LandId?.name || "Unknown Spot",
+        spot: booking.LandId?.spot || "Unknown Spot",
         image:
-          booking.LandId?.images && booking.LandId.images.length > 0
-            ? booking.LandId.images[0]
-            : [],
+          booking.LandId?.image && booking.LandId.image.length > 0
+            ? booking.LandId.image[0]
+            : null,
         price: parseFloat((booking.totalAmount || 0).toFixed(2)),
         status: booking.bookingStatus,
         isVerified: booking.isVerified,

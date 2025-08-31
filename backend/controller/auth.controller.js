@@ -367,6 +367,15 @@ export const resetPassword = async (req, res) => {
       });
     }
 
+    // Check if new password is same as current password
+    const isSamePassword = await user.comparePassword(newPassword);
+    if (isSamePassword) {
+      return res.status(400).json({
+        message:
+          "New password cannot be the same as your current password. Please choose a different password.",
+      });
+    }
+
     user.password = newPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpiresAt = undefined;
@@ -458,6 +467,14 @@ export const updatePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({
+        message:
+          "New password cannot be the same as your current password. Please choose a different password.",
+      });
     }
 
     user.password = newPassword;
