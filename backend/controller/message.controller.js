@@ -1,7 +1,7 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 import cloudinary from "../lib/cloudinary.js";
-import { getReceiverSocketId } from "../lib/socket.js";
+//import { getReceiverSocketId } from "../lib/socket.js";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
@@ -113,19 +113,74 @@ export const sendMessage = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    let imageUrl;
-    if (image) {
-      const uploadResponse = await cloudinary.uploader.upload(image, {
-        folder: "message_images",
+    console.log("Sending message from:", senderId, "to:", receiverId);
+
+    // Validate that at least one of text or image is provided
+    if ((!text || text.trim() === "") && !image) {
+      return res.status(400).json({
+        success: false,
+        message: "Message must contain either text or image",
       });
-      imageUrl = uploadResponse.secure_url;
+    }
+
+    // Handle image upload (single image or array of images)
+    let imageUrls = [];
+    if (image) {
+      const imagesToProcess = Array.isArray(image) ? image : [image];
+
+      for (let i = 0; i < imagesToProcess.length; i++) {
+        const currentImage = imagesToProcess[i];
+
+        if (typeof currentImage !== "string" || currentImage.trim() === "") {
+          continue;
+        }
+
+        console.log(
+          `Processing image ${i + 1} of ${imagesToProcess.length}...`
+        );
+
+        try {
+          const uploadResponse = await cloudinary.uploader.upload(
+            currentImage,
+            {
+              folder: "message_images",
+              resource_type: "auto",
+              transformation: [
+                { width: 1000, height: 1000, crop: "limit" },
+                { quality: "auto:good" },
+                { format: "auto" },
+              ],
+            }
+          );
+          imageUrls.push(uploadResponse.secure_url);
+          console.log(
+            `Image ${i + 1} uploaded successfully:`,
+            uploadResponse.secure_url
+          );
+        } catch (cloudinaryError) {
+          console.error(
+            `Failed to upload image ${i + 1}:`,
+            cloudinaryError.message
+          );
+          return res.status(500).json({
+            success: false,
+            message:
+              `Failed to upload image ${i + 1}: ` + cloudinaryError.message,
+          });
+        }
+      }
+    }
+
+    let messageText = text;
+    if (!text || text.trim() === "") {
+      messageText = " ";
     }
 
     const newMessage = new Message({
       senderId,
       receiverId,
-      text,
-      image: imageUrl,
+      text: messageText,
+      image: imageUrls,
     });
 
     await newMessage.save();

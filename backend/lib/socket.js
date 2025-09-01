@@ -17,7 +17,7 @@ export const socketHandler = (io) => {
       const token =
         socket.handshake.headers.authorization?.split(" ")[1] ||
         socket.handshake.auth.token;
-      console.log("Socket token:", token);
+      // console.log("Socket token:", token);
 
       if (!token) {
         return next(new Error("Authentication error: Token missing"));
@@ -25,7 +25,7 @@ export const socketHandler = (io) => {
 
       const secret = process.env.JWT_SECRET || "secret";
       const decoded = jwt.verify(token, secret);
-      console.log("Decoded token:", decoded);
+      // console.log("Decoded token:", decoded);
       if (
         typeof decoded === "object" &&
         decoded !== null &&
@@ -74,36 +74,103 @@ export const socketHandler = (io) => {
     });
 
     socket.on("send_message", async (payload) => {
-      console.log("send_message payload: ", payload);
       const { receiverId, text = "", image } = payload;
 
       try {
-        let imageUrl = null;
+        let imageUrls = [];
+
         if (image) {
-          if (image.startsWith("http")) {
-            imageUrl = image;
+  console.log("Processing image upload...");
+
+  const imagesToProcess = Array.isArray(image) ? image : [image];
+
+  // Convert Buffer objects to base64 strings
+  const processedImages = imagesToProcess.map(img => {
+    if (Buffer.isBuffer(img)) {
+      return `data:image/jpeg;base64,${img.toString("base64")}`;
+    }
+    return img;
+  });
+
+  for (let i = 0; i < processedImages.length; i++) {
+    const currentImage = processedImages[i];
+
+    if (typeof currentImage !== "string" || currentImage.trim() === "") {
+      continue;
+    }
+
+    if (currentImage.length > 10000000) {
+      socket.emit("message_error", {
+        error: `Image ${i + 1} too large. Please use a smaller image.`,
+      });
+      return;
+    }
+
+    let currentImageUrl;
+    if (currentImage.startsWith("http")) {
+      currentImageUrl = currentImage;
+    } else {
+      try {
+        const uploadResponse = await cloudinary.uploader.upload(currentImage, {
+          folder: "message_images",
+          resource_type: "auto",
+          transformation: [
+            { width: 1000, height: 1000, crop: "limit" },
+            { quality: "auto:good" },
+            { format: "auto" },
+          ],
+        });
+        currentImageUrl = uploadResponse.secure_url;
+        console.log(`Image ${i + 1} uploaded successfully:`, currentImageUrl);
+      } catch (cloudinaryError) {
+        socket.emit("message_error", {
+          error: `Failed to upload image ${i + 1}: ${cloudinaryError.message}`,
+        });
+        return;
+      }
+    }
+
+    imageUrls.push(currentImageUrl);
+  }
+}
+
+console.log("imageUrls ", imageUrls)
+        let messageText = text;
+        if (!text || text.trim() === "") {
+          if (imageUrls.length > 0) {
+            messageText = " ";
           } else {
-            const uploadResponse = await cloudinary.uploader.upload(image, {
-              folder: "message_images",
+            socket.emit("message_error", {
+              error: "Message must contain either text or images",
             });
-            imageUrl = uploadResponse.secure_url;
+            return;
           }
         }
 
         const newMessage = new Message({
           senderId: userId,
           receiverId,
-          text,
-          image: imageUrl,
+          text: messageText,
+          image: imageUrls,
         });
-
         const createdMessage = await newMessage.save();
 
-        io.to(receiverId).emit("receive_message", createdMessage);
+        // Emit to receiver
+        const receiverSocketId = onlineUsers.get(receiverId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("receive_message", createdMessage);
+          console.log("Message sent to receiver");
+        } else {
+          console.log("Receiver not online");
+        }
+
+        // Confirm to sender
         socket.emit("message_sent", createdMessage);
       } catch (error) {
         console.error("Error sending message:", error);
-        socket.emit("message_error", { error: "Failed to send message" });
+        socket.emit("message_error", {
+          error: "Failed to send message: " + error.message,
+        });
       }
     });
 
