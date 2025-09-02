@@ -20,7 +20,7 @@ export const AllBookingLand = async (req, res) => {
       })
       .populate({
         path: "userId",
-        select: "name",
+        select: "name email image",
       })
       .sort({ createdAt: -1 });
 
@@ -47,9 +47,15 @@ export const AllBookingLand = async (req, res) => {
       });
       const currentYear = checkOut.getFullYear();
 
+      const travelerDetails = {
+        _id: booking.userId?._id || "Unknown",
+        name: booking.userId?.name || "Unknown",
+        email: booking.userId?.email || "Unknown",
+        image: booking.userId?.image || "Unknown",
+      };
+
       return {
-        travelerId: booking.userId?._id || "Unknown",
-        travelerName: booking.userId?.name || "Unknown",
+        traveler: travelerDetails,
         spotName: booking.LandId?.spot || "Unknown",
         bookingDateRange: `${checkInFormatted} - ${checkOutFormatted}`,
         bookingYear: currentYear,

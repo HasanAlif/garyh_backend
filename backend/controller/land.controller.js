@@ -564,7 +564,7 @@ export const getLandDetails = async (req, res) => {
     const { id } = req.params;
 
     const land = await Land.findById(id)
-      .populate("owner", "name email")
+      .populate("owner", "name email image")
       .populate("ratingsAndReviews.user", "name email image");
 
     if (!land) {
