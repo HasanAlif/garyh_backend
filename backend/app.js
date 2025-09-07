@@ -20,7 +20,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://10.10.20.29:3001",
+    origin: ["http://10.10.20.29:3001", "http://10.10.20.45:3000"],
     credentials: true,
   })
 );

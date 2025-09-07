@@ -111,8 +111,7 @@ export const createLand = async (req, res) => {
     if (!hasStripeAccount) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please first add your bank information for receiving your money from bookings. You can set up your bank account at: /api/payment/stripe_bank/create",
+        message: "Please create stripe account first!",
       });
     }
 
@@ -279,7 +278,7 @@ export const getAvailableLand = async (req, res) => {
 
 export const getAllLands = async (req, res) => {
   try {
-    const lands = await Land.find({});
+    const lands = await Land.find({}).sort({ createdAt: -1 });
 
     if (lands.length === 0) {
       return res.status(404).json({
@@ -993,13 +992,13 @@ export const updateLandAvailability = async (req, res) => {
     allBookings.forEach((booking, index) => {
       const checkIn = new Date(booking.checkIn);
       const checkOut = new Date(booking.checkOut);
-      
+
       checkIn.setHours(0, 0, 0, 0);
       checkOut.setHours(23, 59, 59, 999);
 
       // Only check if TODAY falls within the booking period
       const isTodayInBookingRange = checkIn <= today && checkOut >= today;
-      
+
       if (isTodayInBookingRange) {
         activeLandIds.push(booking.LandId);
       }
@@ -1012,19 +1011,23 @@ export const updateLandAvailability = async (req, res) => {
     if (activeLandIds.length > 0) {
       // Remove duplicates
       const uniqueLandIds = [...new Set(activeLandIds)];
-      
+
       await Land.updateMany(
         { _id: { $in: uniqueLandIds } },
         { isAvailable: false }
       );
-      console.log(`Set ${uniqueLandIds.length} lands to unavailable due to active bookings`);
+      console.log(
+        `Set ${uniqueLandIds.length} lands to unavailable due to active bookings`
+      );
     }
 
     const result = {
       success: true,
       totalBookingsChecked: allBookings.length,
-      landsUnavailable: activeLandIds.length > 0 ? [...new Set(activeLandIds)].length : 0,
-      unavailableLandIds: activeLandIds.length > 0 ? [...new Set(activeLandIds)] : [],
+      landsUnavailable:
+        activeLandIds.length > 0 ? [...new Set(activeLandIds)].length : 0,
+      unavailableLandIds:
+        activeLandIds.length > 0 ? [...new Set(activeLandIds)] : [],
     };
 
     console.log("=== LAND AVAILABILITY UPDATE COMPLETED ===", result);
@@ -1032,7 +1035,7 @@ export const updateLandAvailability = async (req, res) => {
     if (res) {
       return res.status(200).json(result);
     }
-    
+
     return result;
   } catch (error) {
     console.error("Error updating land availability:", error);

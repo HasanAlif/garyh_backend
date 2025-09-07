@@ -184,6 +184,11 @@ export const Login = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "User is not Registered" });
     }
+    if (user.status === "suspended") {
+      return res
+        .status(403)
+        .json({ message: "Your account has been suspended. Contact support." });
+    }
     if (user && (await user.comparePassword(password))) {
       const accessToken = generateTokenAndSetCookie(res, user._id);
 
@@ -490,9 +495,30 @@ export const updatePassword = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { name, phoneNumber, address, image } = req.body;
+    
+    // Handle both JSON and form-data requests
+    let name, phoneNumber, address, image;
+    
+    // Check if this is form-data (multipart) or JSON
+    if (req.file) {
+      // This is form-data with file upload
+      name = req.body?.name;
+      phoneNumber = req.body?.phoneNumber;
+      address = req.body?.address;
+      // For file uploads, we'll handle the image differently
+      image = req.file;
+    } else if (req.body && typeof req.body === 'object') {
+      // This is JSON data
+      ({ name, phoneNumber, address, image } = req.body);
+    } else {
+      return res.status(400).json({
+        message: "Invalid request format. Please send data as JSON or form-data.",
+      });
+    }
 
-    if (Object.keys(req.body).length === 0) {
+    // Check if any update fields are provided
+    const hasUpdateFields = name || phoneNumber || address || image || req.file;
+    if (!hasUpdateFields) {
       return res.status(400).json({
         message:
           "No update fields provided. Please provide at least one field to update.",
@@ -534,9 +560,29 @@ export const updateProfile = async (req, res) => {
       updateData.address = address.trim();
     }
 
-    if (image) {
+    if (image || req.file) {
       try {
-        const isBase64Image = image.startsWith("data:image/");
+        let imageToUpload;
+        
+        if (req.file) {
+          // Handle file upload (form-data)
+          const fs = await import('fs');
+          const imageBuffer = fs.readFileSync(req.file.path);
+          const imageBase64 = `data:${req.file.mimetype};base64,${imageBuffer.toString('base64')}`;
+          imageToUpload = imageBase64;
+          
+          // Clean up the temporary file
+          try {
+            fs.unlinkSync(req.file.path);
+          } catch (cleanupError) {
+            console.log("Error cleaning up temp file:", cleanupError);
+          }
+        } else {
+          // Handle base64 image (JSON data)
+          imageToUpload = image;
+        }
+
+        const isBase64Image = imageToUpload.startsWith("data:image/");
 
         if (!isBase64Image) {
           return res.status(400).json({
@@ -554,7 +600,7 @@ export const updateProfile = async (req, res) => {
           }
         }
 
-        const cloudinaryResponse = await cloudinary.uploader.upload(image, {
+        const cloudinaryResponse = await cloudinary.uploader.upload(imageToUpload, {
           folder: "profile_images",
           transformation: [
             { width: 400, height: 400, crop: "fill" },
@@ -620,6 +666,32 @@ export const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating profile:", error);
+    
+    // Clean up uploaded file if there was an error
+    if (req.file && req.file.path) {
+      try {
+        const fs = await import('fs');
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.log("Error cleaning up temp file after error:", cleanupError);
+      }
+    }
+    
+    // Handle multer errors
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: "File too large. Please upload an image smaller than 10MB.",
+      });
+    }
+    
+    if (error.message === 'Only image files are allowed!') {
+      return res.status(400).json({
+        success: false,
+        message: "Only image files are allowed. Please upload a valid image file.",
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Server error",

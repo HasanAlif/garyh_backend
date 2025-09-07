@@ -1,4 +1,6 @@
 import express from "express";
+import multer from "multer";
+import path from "path";
 import {
   getDashboardStats,
   getBookingStats,
@@ -31,6 +33,31 @@ import {
   updateProfile,
   verifyResetCode,
 } from "../controller/auth.controller.js";
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/temp/') // temporary folder for uploads
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname))
+  }
+})
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Check if the file is an image
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -83,6 +110,6 @@ router.get("/terms-conditions", getTermsAndConditions);
 
 //Edit Profile
 router.put("/change-password", protectRoute, adminRoute, updatePassword);
-router.patch("/update-profile", protectRoute, adminRoute, updateProfile);
+router.patch("/update-profile", protectRoute, adminRoute, upload.single('image'), updateProfile);
 
 export default router;

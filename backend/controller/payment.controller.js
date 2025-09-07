@@ -156,9 +156,18 @@ export const stripeSuccessAndUpdate = async (req, res) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // Idempotent: if already marked paid, return success
     if (booking.isPaid && booking.paymentStatus === "paid") {
-      return res.status(200).json({ success: true, bookingId: booking._id });
+      if (booking.stripeTransferId && !booking.transferError) {
+        const frontendUrl = "http://10.10.20.29:3001";
+        return res.redirect(`${frontendUrl}/booking-confirm?success=true&bookingId=${booking._id}&status=completed`);
+      } else {
+        return res.status(200).json({ 
+          success: true, 
+          bookingId: booking._id,
+          transferStatus: booking.transferError ? 'failed' : 'pending',
+          message: 'Payment completed but landowner payout may be pending bank account setup'
+        });
+      }
     }
 
     // Get the full payment details from Stripe
@@ -250,17 +259,25 @@ export const stripeSuccessAndUpdate = async (req, res) => {
       console.error("Transaction create error", e);
     }
 
-    return res.status(200).json({
-      success: true,
-      bookingId: booking._id,
-      paymentStatus: session.payment_status,
-      amount_total: session.amount_total / 100, // Convert cents to dollars
-    });
+    if (booking.isPaid && booking.paymentStatus === "paid" && !transferError && transferId) {
+      const frontendUrl = "http://10.10.20.29:3001";
+      return res.redirect(`${frontendUrl}/booking-confirm?success=true&bookingId=${booking._id}&paymentStatus=${session.payment_status}&amount=${session.amount_total / 100}&transferStatus=completed`);
+    } else {
+      return res.status(200).json({
+        success: true,
+        bookingId: booking._id,
+        paymentStatus: session.payment_status,
+        amount_total: session.amount_total / 100,
+        transferStatus: transferError ? 'failed' : 'pending',
+        transferError: transferError,
+        message: transferError ? 'Payment successful but transfer to landowner failed. Please ensure landowner has completed bank account setup.' : 'Payment successful'
+      });
+    }
   } catch (err) {
     console.error("stripeSuccessAndUpdate error", err);
-    return res
-      .status(500)
-      .json({ message: "Failed to confirm payment", error: err.message });
+    // Redirect to frontend error page instead of JSON response
+    const frontendUrl = "http://10.10.20.29:3001";
+    return res.redirect(`${frontendUrl}/booking-confirm?error=true&message=${encodeURIComponent(err.message || 'Payment confirmation failed')}`);
   }
 };
 
@@ -504,18 +521,20 @@ export const createAndUpdateConnectedAccount = async (req, res) => {
       await existingUser.save();
       accountId = account.id;
 
+      const frontendReturnUrl = encodeURIComponent("http://10.10.20.29:3001/host/spots");
       accountLink = await stripe.accountLinks.create({
         account: accountId,
         refresh_url: `${baseUrl}/api/payment/stripe_bank/create`,
-        return_url: `${baseUrl}/api/payment/stripe_bank/success?accountId=${accountId}&userId=${userId}`,
+        return_url: `${baseUrl}/api/payment/stripe_bank/success?accountId=${accountId}&userId=${userId}&redirect_to=${frontendReturnUrl}`,
         type: "account_onboarding",
       });
-    } else {
+        } else {
       // Update existing account
+      const frontendReturnUrl = encodeURIComponent("http://10.10.20.29:3001/host/spots");
       accountLink = await stripe.accountLinks.create({
         account: accountId,
         refresh_url: `${baseUrl}/api/payment/stripe_bank/create`,
-        return_url: `${baseUrl}/api/payment/stripe_bank/success/update?accountId=${accountId}&userId=${userId}`,
+        return_url: `${baseUrl}/api/payment/stripe_bank/success/update?accountId=${accountId}&userId=${userId}&redirect_to=${frontendReturnUrl}`,
         type: "account_onboarding",
       });
     }
@@ -611,11 +630,9 @@ export const saveStripeAccount = async (req, res) => {
       { new: true }
     );
 
-    return res.status(200).json({
-      success: true,
-      message: "Bank account saved successfully",
-      data: savedStripeAccount,
-    });
+    // Redirect to frontend success page instead of JSON response
+    const frontendUrl = "http://10.10.20.29:3001";
+    return res.redirect(`${frontendUrl}/host/spots`);
   } catch (err) {
     console.error("saveStripeAccount error:", err);
     return res
@@ -702,11 +719,9 @@ export const updateStripeAccount = async (req, res) => {
       { new: true }
     );
 
-    return res.status(200).json({
-      success: true,
-      message: "Bank account updated successfully",
-      data: updatedStripeAccount,
-    });
+    // Redirect to frontend success page instead of JSON response  
+    const frontendUrl = "http://10.10.20.29:3001";
+    return res.redirect(`${frontendUrl}/host/spots`);
   } catch (err) {
     console.error("updateStripeAccount error:", err);
     return res
