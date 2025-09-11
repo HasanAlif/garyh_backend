@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import { cancelExpiredBookings } from "./controller/booking.controller.js";
 import { startLandAvailabilityAutomation } from "./controller/land.controller.js";
 import { connectDB } from "./lib/db.js";
+import { socketCorsOptions } from "./config/cors.config.js";
 import app from "./app.js";
 import http from "http";
 import { Server } from "socket.io";
@@ -12,10 +13,7 @@ dotenv.config();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: "http://10.10.20.29:3001",
-    credentials: true,
-  },
+  cors: socketCorsOptions,
   maxHttpBufferSize: 1e8, // 100MB
 });
 
