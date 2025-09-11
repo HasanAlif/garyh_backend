@@ -18,6 +18,20 @@ dotenv.config();
 
 const app = express();
 
+const allowedOrigins = ["https://rvnbo.onrender.com"];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+};
+
+app.use(cors(corsOptions));
+
 // app.use(
 //   cors({
 //     origin: ["http://10.10.20.29:3001", "http://10.10.20.45:3000", "https://rvnbo.onrender.com"],
