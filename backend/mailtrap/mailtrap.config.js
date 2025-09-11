@@ -11,7 +11,7 @@ export const transport = Nodemailer.createTransport({
   // })
   //This part will use when we have website domain
 
-  host: 'xlkek09txz.houseoffoss.net',
+  host: 'ts1g8dvw8c.houseoffoss.net',
   port: 1025,
   auth:{
     user: "user1",
