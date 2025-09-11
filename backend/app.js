@@ -18,19 +18,58 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = ["https://rvnbo.onrender.com"];
+const allowedOrigins = [
+  "https://rvnbo.onrender.com",
+  "http://10.10.20.29:3001",
+  "http://10.10.20.45:3000",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "https://localhost:3000",
+  "https://localhost:3001"
+];
 
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log('CORS Request from origin:', origin);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    
+    // Allow requests with no origin (like mobile apps, Postman, server-to-server)
+    if (!origin) {
+      console.log('No origin - allowing request');
+      return callback(null, true);
+    }
+    
+    // Allow if origin is in the allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('Origin allowed:', origin);
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      // In development, allow all origins
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Development mode - allowing origin:', origin);
+        callback(null, true);
+      } else {
+        console.log('CORS blocked origin:', origin);
+        callback(new Error("Not allowed by CORS"));
+      }
     }
   },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
 };
 
 app.use(cors(corsOptions));
+
+// Alternative CORS configuration - uncomment if above doesn't work
+// app.use(
+//   cors({
+//     origin: true, // Allow all origins in development/testing
+//     credentials: true,
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+//   })
+// );
 
 // app.use(
 //   cors({
