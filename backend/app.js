@@ -20,6 +20,7 @@ const app = express();
 
 const allowedOrigins = [
   "https://rvnbo.onrender.com",
+  "https://garyh-dashboard.netlify.app",
   "http://10.10.20.29:3001",
   "http://10.10.20.45:3000",
   "http://localhost:3000",

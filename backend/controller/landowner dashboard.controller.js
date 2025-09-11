@@ -93,7 +93,7 @@ export const allRatingReviews = async (req, res) => {
     if (!lands.length) {
       return res.status(404).json({
         success: false,
-        message: "No lands found for this landowner",
+        message: "No lands found for this host",
       });
     }
 
