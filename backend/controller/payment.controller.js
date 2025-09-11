@@ -67,7 +67,8 @@ export const createCheckoutSession = async (req, res) => {
     const userIdStr = String(booking.userId?._id || booking.userId);
     const landIdStr = String(land._id);
 
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+    // const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+    const backendUrl = process.env.BACKEND_URL || "https://garyh-backend.onrender.com";
     const sessionParams = {
       mode: "payment",
       payment_method_types: ["card"],
@@ -96,7 +97,7 @@ export const createCheckoutSession = async (req, res) => {
       //success_url: `${"http://localhost:5173/"}`,
       success_url: `${backendUrl}/api/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${
-        process.env.FRONTEND_URL || "http://localhost:5173"
+        process.env.FRONTEND_URL || "https://rvnbo.onrender.com"
       }/payment-cancelled`,
     };
 
@@ -158,7 +159,8 @@ export const stripeSuccessAndUpdate = async (req, res) => {
 
     if (booking.isPaid && booking.paymentStatus === "paid") {
       if (booking.stripeTransferId && !booking.transferError) {
-        const frontendUrl = "http://10.10.20.29:3001";
+        // const frontendUrl = "http://10.10.20.29:3001";
+        const frontendUrl = "https://rvnbo.onrender.com";
         return res.redirect(`${frontendUrl}/booking-confirm?success=true&bookingId=${booking._id}&status=completed`);
       } else {
         return res.status(200).json({ 
@@ -260,7 +262,8 @@ export const stripeSuccessAndUpdate = async (req, res) => {
     }
 
     if (booking.isPaid && booking.paymentStatus === "paid" && !transferError && transferId) {
-      const frontendUrl = "http://10.10.20.29:3001";
+      // const frontendUrl = "http://10.10.20.29:3001";
+      const frontendUrl = "https://rvnbo.onrender.com";
       return res.redirect(`${frontendUrl}/booking-confirm?success=true&bookingId=${booking._id}&paymentStatus=${session.payment_status}&amount=${session.amount_total / 100}&transferStatus=completed`);
     } else {
       return res.status(200).json({
@@ -276,7 +279,8 @@ export const stripeSuccessAndUpdate = async (req, res) => {
   } catch (err) {
     console.error("stripeSuccessAndUpdate error", err);
     // Redirect to frontend error page instead of JSON response
-    const frontendUrl = "http://10.10.20.29:3001";
+    // const frontendUrl = "http://10.10.20.29:3001";
+    const frontendUrl = "https://rvnbo.onrender.com";
     return res.redirect(`${frontendUrl}/booking-confirm?error=true&message=${encodeURIComponent(err.message || 'Payment confirmation failed')}`);
   }
 };
@@ -493,7 +497,8 @@ export const createAndUpdateConnectedAccount = async (req, res) => {
 
     let accountId = existingUser.stripeAccountId;
 
-    const baseUrl = process.env.BACKEND_URL || "http://localhost:5000";
+    // const baseUrl = process.env.BACKEND_URL || "http://localhost:5000";
+    const baseUrl = process.env.BACKEND_URL || "https://garyh-backend.onrender.com";
     let accountLink;
 
     if (!accountId) {
@@ -521,7 +526,8 @@ export const createAndUpdateConnectedAccount = async (req, res) => {
       await existingUser.save();
       accountId = account.id;
 
-      const frontendReturnUrl = encodeURIComponent("http://10.10.20.29:3001/host/spots");
+      // const frontendReturnUrl = encodeURIComponent("http://10.10.20.29:3001/host/spots");
+      const frontendReturnUrl = encodeURIComponent("https://rvnbo.onrender.com/host/spots");
       accountLink = await stripe.accountLinks.create({
         account: accountId,
         refresh_url: `${baseUrl}/api/payment/stripe_bank/create`,
@@ -530,7 +536,8 @@ export const createAndUpdateConnectedAccount = async (req, res) => {
       });
         } else {
       // Update existing account
-      const frontendReturnUrl = encodeURIComponent("http://10.10.20.29:3001/host/spots");
+      // const frontendReturnUrl = encodeURIComponent("http://10.10.20.29:3001/host/spots");
+      const frontendReturnUrl = encodeURIComponent("https://rvnbo.onrender.com/host/spots");
       accountLink = await stripe.accountLinks.create({
         account: accountId,
         refresh_url: `${baseUrl}/api/payment/stripe_bank/create`,
@@ -631,7 +638,8 @@ export const saveStripeAccount = async (req, res) => {
     );
 
     // Redirect to frontend success page instead of JSON response
-    const frontendUrl = "http://10.10.20.29:3001";
+    // const frontendUrl = "http://10.10.20.29:3001";
+    const frontendUrl = "https://rvnbo.onrender.com";
     return res.redirect(`${frontendUrl}/host/spots`);
   } catch (err) {
     console.error("saveStripeAccount error:", err);
@@ -720,7 +728,8 @@ export const updateStripeAccount = async (req, res) => {
     );
 
     // Redirect to frontend success page instead of JSON response  
-    const frontendUrl = "http://10.10.20.29:3001";
+    // const frontendUrl = "http://10.10.20.29:3001";
+    const frontendUrl = "https://rvnbo.onrender.com";
     return res.redirect(`${frontendUrl}/host/spots`);
   } catch (err) {
     console.error("updateStripeAccount error:", err);
