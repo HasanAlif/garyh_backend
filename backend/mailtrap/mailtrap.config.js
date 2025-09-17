@@ -1,40 +1,31 @@
-import Nodemailer from "nodemailer";
-import { MailtrapTransport } from "mailtrap";
+import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
 
-const TOKEN = process.env.MAILTRAP_TOKEN;
-
-export const transport = Nodemailer.createTransport({
-  // MailtrapTransport({
-  //   token: TOKEN,
-  // })
-  //This part will use when we have website domain
-
-  host: 'ts1g8dvw8c.houseoffoss.net',
-  port: 1025,
-  auth:{
-    user: "user1",
-    pass: "password1"
-  }
+// Create the transport configuration
+export const transport = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: "alifalmehedihasan2@gmail.com",
+    pass: "bpfkazkhtzfqfank",
+  },
 });
 
+// Export sender information
 export const sender = {
-  address: "hello@demomailtrap.co",
+  address: "alifalmehedihasan2@gmail.com",
   name: "RVnBo.com",
 };
 
+const emailSender = async (email, html, subject) => {
+  const info = await transport.sendMail({
+    from: sender.address,
+    to: email,
+    subject: subject,
+    html,
+  });
+};
 
-// const recipients = [
-//   "alifalmehedihasan2@gmail.com",
-// ];
-
-// transport
-//   .sendMail({
-//     from: sender,
-//     to: recipients,
-//     subject: "You are awesome!",
-//     text: "Congrats for sending test email with Mailtrap!",
-//     category: "Integration Test",
-//   })
-//   .then(console.log, console.error);
+export default emailSender;
