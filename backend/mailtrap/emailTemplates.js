@@ -203,17 +203,17 @@ export const WELCOME_USER_MAIL = `
                 Thank you for joining <strong>RVnBO.com</strong> — the easiest way to find and book RV van parking spots on your adventures.  
               </p>
               <p style="color:#555; font-size:16px; line-height:1.6;">
-                Whether you're planning a weekend getaway or a cross-country road trip, we’ve got the perfect spots for you to park, rest, and recharge.  
+                Whether you're planning a weekend getaway or a cross-country road trip, we have got the perfect spots for you to park, rest, and recharge.  
               </p>
               <div style="text-align:center; margin:30px 0;">
-                <a href="https://rvnbo.com/login" 
+                <a href="https://rvnbo.onrender.com/auth/login" target="_blank"
                    style="background:#4CAF50; color:#ffffff; text-decoration:none; font-size:16px; padding:14px 30px; border-radius:8px; display:inline-block;">
                    Start Exploring
                 </a>
               </div>
 
               <p style="color:#555; font-size:15px; line-height:1.6; text-align:center;">
-                We’re excited to be part of your journey. Safe travels and happy parking! 🚐✨
+                We are excited to be part of your journey. Safe travels and happy parking! 🚐✨
               </p>
             </td>
           </tr>
@@ -222,8 +222,8 @@ export const WELCOME_USER_MAIL = `
               <p style="margin:0;">&copy; 2025 RVnBO.com. All rights reserved.</p>
               <p style="margin:5px 0 0;">123 Adventure Road, Wanderlust City, USA</p>
               <p style="margin:5px 0 0;">
-                <a href="https://rvnbo.com/privacy" style="color:#4CAF50; text-decoration:none;">Privacy Policy</a> | 
-                <a href="https://rvnbo.com/terms" style="color:#4CAF50; text-decoration:none;">Terms of Service</a>
+                <a href="https://rvnbo.onrender.com/privacy-policy" style="color:#4CAF50; text-decoration:none;">Privacy Policy</a> | 
+                <a href="https://rvnbo.onrender.com/terms-conditions" style="color:#4CAF50; text-decoration:none;">Terms of Service</a>
               </p>
             </td>
           </tr>
