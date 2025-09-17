@@ -4,12 +4,12 @@ dotenv.config();
 
 // Create the transport configuration
 export const transport = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
+  host: process.env.MAIL_HOST,
+  port: process.env.MAIL_PORT,
   secure: true,
   auth: {
-    user: "alifalmehedihasan2@gmail.com",
-    pass: "bpfkazkhtzfqfank",
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
   },
 });
 
